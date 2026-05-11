@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Exam extends Model
 {
-    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'classroom_id', 'start_time', 'end_time', 'duration_minutes', 'is_active'];
+    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'classroom_id', 'start_time', 'end_time', 'duration_minutes', 'is_active', 'passing_grade', 'max_attempts'];
 
     protected $casts = [
         'start_time' => 'datetime',
@@ -57,5 +57,20 @@ class Exam extends Model
     public function examSessions()
     {
         return $this->hasMany(ExamSession::class);
+    }
+
+    public function canRemedial(User $user): bool
+    {
+        if ($this->max_attempts <= 1) return false;
+
+        $lastSession = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $this->id)
+            ->orderByDesc('attempt_number')
+            ->first();
+
+        if (!$lastSession || !$lastSession->finished_at) return false;
+
+        return $lastSession->score < $this->passing_grade
+            && $lastSession->attempt_number < $this->max_attempts;
     }
 }

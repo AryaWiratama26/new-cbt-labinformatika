@@ -30,6 +30,8 @@
                     </div>
                     @if($exam->status === 'finished')
                         <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">Selesai</span>
+                    @elseif($exam->status === 'remedial')
+                        <span class="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">Remedial</span>
                     @elseif($exam->status === 'in_progress')
                         <span class="px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold rounded-full border border-yellow-200">Sedang Dikerjakan</span>
                     @elseif($exam->status === 'waiting')
@@ -59,7 +61,16 @@
 
                 @if($exam->status === 'finished')
                     <div class="w-full bg-gray-50 text-gray-700 py-3 rounded-xl font-medium text-center border border-gray-200">
-                        Nilai: {{ $exam->session->score ?? 0 }}
+                        Nilai: {{ $exam->session->score ?? 0 }} (Percobaan {{ $exam->attempt_number }})
+                    </div>
+                @elseif($exam->status === 'remedial')
+                    <div class="space-y-2">
+                        <div class="w-full bg-amber-50 text-amber-800 py-3 rounded-xl font-medium text-center border border-amber-200">
+                            Nilai: {{ $exam->session->score ?? 0 }} (Percobaan {{ $exam->attempt_number }}/{{ $exam->max_attempts }})
+                        </div>
+                        <a href="{{ route('student.exams.show', $exam) }}" class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-medium transition-colors text-center block">
+                            Ikuti Remedial
+                        </a>
                     </div>
                 @elseif($exam->status === 'in_progress')
                     <a href="{{ route('student.exams.show', $exam) }}" class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-medium transition-colors text-center block">

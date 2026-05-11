@@ -24,7 +24,10 @@
             <div class="grid md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-900 mb-2">Gambar Pendukung (Opsional)</label>
-                    <input type="file" name="image" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer">
+                    <input type="file" name="image" accept="image/*" onchange="previewImage(this, 'preview-create')" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer">
+                    <div id="preview-create" class="mt-2 hidden">
+                        <img class="max-h-40 rounded-lg border border-gray-200 object-contain bg-white p-1">
+                    </div>
                     @error('image') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
@@ -75,4 +78,17 @@
         </form>
     </div>
 </div>
+<script>
+function previewImage(input, containerId) {
+    const container = document.getElementById(containerId);
+    const img = container.querySelector('img');
+    if (input.files && input.files[0]) {
+        img.src = URL.createObjectURL(input.files[0]);
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+        img.src = '';
+    }
+}
+</script>
 @endsection

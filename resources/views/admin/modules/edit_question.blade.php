@@ -24,11 +24,18 @@
             <div class="grid md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-900 mb-2">Gambar (biarkan kosong jika tidak diubah)</label>
-                    <input type="file" name="image" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer">
+                    <input type="file" name="image" accept="image/*" onchange="previewImage(this, 'preview-edit')" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer">
+                    <div id="preview-edit" class="mt-2 hidden">
+                        <img class="max-h-40 rounded-lg border border-gray-200 object-contain bg-white p-1">
+                    </div>
                     @if($question->image)
-                        <div class="mt-2 flex items-center gap-2">
+                        <div class="mt-2 flex items-center gap-3">
                             <img src="{{ asset('storage/' . $question->image) }}" class="h-12 w-12 rounded-lg object-cover border">
                             <span class="text-xs text-gray-500">Gambar saat ini</span>
+                            <label class="flex items-center gap-1.5 text-xs text-red-600 cursor-pointer ml-auto">
+                                <input type="checkbox" name="remove_image" value="1" class="rounded border-gray-300 text-red-500 focus:ring-red-500">
+                                Hapus gambar
+                            </label>
                         </div>
                     @endif
                     @error('image') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
@@ -84,4 +91,17 @@
         </form>
     </div>
 </div>
+<script>
+function previewImage(input, containerId) {
+    const container = document.getElementById(containerId);
+    const img = container.querySelector('img');
+    if (input.files && input.files[0]) {
+        img.src = URL.createObjectURL(input.files[0]);
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+        img.src = '';
+    }
+}
+</script>
 @endsection

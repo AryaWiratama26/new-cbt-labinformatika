@@ -19,6 +19,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/admin/import-students', [AdminController::class, 'importStudents'])->name('admin.import_students');
         Route::get('/admin/template/students', [AdminController::class, 'downloadStudentTemplate'])->name('admin.template_students');
         Route::get('/admin/template/questions', [AdminController::class, 'downloadQuestionTemplate'])->name('admin.template_questions');
+        Route::get('/admin/template/questions-docx', [\App\Http\Controllers\ModuleController::class, 'downloadDocxTemplate'])->name('admin.template_questions.docx');
 
         // Students management
         Route::get('/admin/students', [AdminController::class, 'students'])->name('admin.students.index');
@@ -52,6 +53,7 @@ Route::middleware(['auth'])->group(function () {
 
             // Questions inside a module
             Route::post('/{module}/import-questions', [\App\Http\Controllers\ModuleController::class, 'importQuestions'])->name('import_questions');
+            Route::post('/{module}/import-docx', [\App\Http\Controllers\ModuleController::class, 'importQuestionsDocx'])->name('import_questions.docx');
             Route::get('/{module}/questions/create', [\App\Http\Controllers\ModuleController::class, 'createQuestion'])->name('questions.create');
             Route::post('/{module}/questions', [\App\Http\Controllers\ModuleController::class, 'storeQuestion'])->name('questions.store');
             Route::get('/{module}/questions/{question}/edit', [\App\Http\Controllers\ModuleController::class, 'editQuestion'])->name('questions.edit');
@@ -63,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
         // Exams (schedule)
         Route::resource('admin/exams', \App\Http\Controllers\ExamController::class)->names('admin.exams');
         Route::get('admin/exams/{exam}/results', [\App\Http\Controllers\ExamController::class, 'results'])->name('admin.exams.results');
+        Route::get('admin/exams/{exam}/monitor', [\App\Http\Controllers\ExamController::class, 'monitor'])->name('admin.exams.monitor');
     });
 
     // Student Routes

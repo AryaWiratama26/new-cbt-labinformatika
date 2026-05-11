@@ -13,6 +13,9 @@
             </div>
         </div>
         <div class="flex gap-3">
+            <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-cyan-200 hover:bg-cyan-50 text-cyan-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-eye text-lg"></i> Monitor
+            </a>
             <button onclick="window.print()" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-printer text-lg"></i> Cetak Laporan
             </button>
@@ -40,32 +43,50 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse min-w-[600px]">
+            <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-100">
                         <th class="py-4 px-4 font-semibold text-gray-600 text-sm">No</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">NIM</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Nama Mahasiswa</th>
+                        <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Percobaan</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Waktu Submit</th>
-                        <th class="py-4 px-6 font-semibold text-gray-600 text-sm text-right">Skor / Nilai</th>
+                        <th class="py-4 px-6 font-semibold text-gray-600 text-sm text-right">Skor</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    @forelse($sessions as $index => $session)
-                    <tr class="hover:bg-gray-50/50 transition-colors">
-                        <td class="py-4 px-4 text-gray-500">{{ $index + 1 }}</td>
-                        <td class="py-4 px-6 font-mono text-gray-600">{{ $session->user->username }}</td>
-                        <td class="py-4 px-6 font-medium text-gray-900">{{ $session->user->name }}</td>
-                        <td class="py-4 px-6 text-sm text-gray-500">
-                            {{ $session->finished_at ? $session->finished_at->format('d M Y, H:i:s') : 'Belum Selesai' }}
-                        </td>
-                        <td class="py-4 px-6 text-right font-bold {{ $session->score >= 70 ? 'text-green-600' : 'text-red-500' }}">
-                            {{ $session->score ?? '0' }}
-                        </td>
-                    </tr>
+                    @forelse($students as $userId => $sessions)
+                        @php $first = true; $count = $sessions->count(); @endphp
+                        @foreach($sessions as $session)
+                        <tr class="hover:bg-gray-50/50 transition-colors {{ $session->attempt_number > 1 ? 'bg-amber-50/30' : '' }}">
+                            <td class="py-4 px-4 text-gray-500">{{ $first ? $loop->parent->iteration : '' }}</td>
+                            <td class="py-4 px-6 font-mono text-gray-600">{{ $session->user->username }}</td>
+                            <td class="py-4 px-6 font-medium text-gray-900">
+                                {{ $session->user->name }}
+                                @if($first && $count > 1)
+                                    <span class="ml-2 text-xs text-gray-500">({{ $count }}x)</span>
+                                @endif
+                            </td>
+                            <td class="py-4 px-6">
+                                <span class="inline-flex items-center gap-1 text-sm">
+                                    Percobaan {{ $session->attempt_number }}
+                                    @if($session->attempt_number > 1)
+                                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">Remedial</span>
+                                    @endif
+                                </span>
+                            </td>
+                            <td class="py-4 px-6 text-sm text-gray-500">
+                                {{ $session->finished_at ? $session->finished_at->format('d M Y, H:i:s') : 'Belum Selesai' }}
+                            </td>
+                            <td class="py-4 px-6 text-right font-bold {{ $session->score !== null && $session->score >= $exam->passing_grade ? 'text-green-600' : ($session->score !== null ? 'text-red-500' : 'text-gray-400') }}">
+                                {{ $session->score ?? '-' }}
+                            </td>
+                        </tr>
+                        @php $first = false; @endphp
+                        @endforeach
                     @empty
                     <tr>
-                        <td colspan="5" class="py-12 text-center text-gray-500">
+                        <td colspan="6" class="py-12 text-center text-gray-500">
                             <div class="inline-flex h-16 w-16 bg-gray-50 rounded-full items-center justify-center text-gray-400 mb-4">
                                 <i class="ph ph-users text-3xl"></i>
                             </div>
@@ -77,6 +98,15 @@
                 </tbody>
             </table>
         </div>
+
+        @if($exam->max_attempts > 1)
+        <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800 flex items-start gap-3">
+            <i class="ph ph-info text-lg flex-shrink-0 mt-0.5"></i>
+            <div>
+                <strong>Informasi Remedial:</strong> Ujian ini memiliki nilai minimal <strong>{{ $exam->passing_grade }}</strong> dengan maksimal <strong>{{ $exam->max_attempts }}</strong> percobaan. Baris dengan latar <span class="bg-amber-50/30 px-1 rounded">kuning</span> adalah percobaan remedial.
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection

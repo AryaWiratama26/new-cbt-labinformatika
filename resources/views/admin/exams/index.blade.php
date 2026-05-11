@@ -57,6 +57,9 @@
                         </td>
                         <td class="py-4 px-6 text-right">
                             <div class="flex items-center justify-end gap-2">
+                                <a href="{{ route('admin.exams.monitor', $exam) }}" class="text-cyan-600 hover:text-cyan-800 p-2 rounded-lg hover:bg-cyan-50 transition-colors" title="Monitor">
+                                    <i class="ph ph-eye text-lg"></i>
+                                </a>
                                 <a href="{{ route('admin.exams.results', $exam) }}" class="text-indigo-600 hover:text-indigo-800 p-2 rounded-lg hover:bg-indigo-50 transition-colors" title="Lihat Nilai">
                                     <i class="ph ph-chart-bar text-lg"></i>
                                 </a>

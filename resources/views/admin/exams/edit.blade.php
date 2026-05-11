@@ -81,6 +81,22 @@
                 </div>
             </div>
 
+            <div class="border-t border-gray-100 pt-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Pengaturan Remedial</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Nilai Minimal (Passing Grade) <span class="text-red-500">*</span></label>
+                        <input type="number" name="passing_grade" value="{{ old('passing_grade', $exam->passing_grade ?? 70) }}" min="0" max="100" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
+                        <p class="text-xs text-gray-500 mt-1">Mahasiswa dengan nilai di bawah ini berhak remedial.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Maksimal Percobaan <span class="text-red-500">*</span></label>
+                        <input type="number" name="max_attempts" value="{{ old('max_attempts', $exam->max_attempts ?? 1) }}" min="1" max="10" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
+                        <p class="text-xs text-gray-500 mt-1">1 = tanpa remedial. 2+ = ada kesempatan remedial.</p>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Deskripsi / Aturan (Opsional)</label>
                 <textarea name="description" rows="3" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">{{ old('description', $exam->description) }}</textarea>

@@ -15,6 +15,9 @@
             <a href="{{ route('admin.template_questions') }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-download-simple"></i> Template CSV
             </a>
+            <a href="{{ route('admin.template_questions.docx') }}" class="inline-flex items-center gap-2 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-download-simple"></i> Template Word
+            </a>
             <a href="{{ route('admin.courses.modules.questions.create', [$course, $module]) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-plus"></i> Tambah Manual
             </a>
@@ -47,19 +50,47 @@
             </form>
         </div>
 
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-1">Import Soal via Word</h3>
+            <p class="text-sm text-gray-500 mb-4">Upload file .docx dengan format soal yang sudah ditentukan.</p>
+            <form action="{{ route('admin.courses.modules.import_questions.docx', [$course, $module]) }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 mb-1 block">File .docx Soal *</label>
+                    <input type="file" name="docx_file" accept=".docx" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-xl p-2">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition-colors flex justify-center items-center gap-2">
+                    <i class="ph ph-upload-simple"></i> Import dari Word
+                </button>
+            </form>
+        </div>
+
         <div class="md:col-span-2">
             <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold text-gray-900">Bank Soal <span class="text-sm font-normal text-gray-500">({{ $module->questions->count() }} soal)</span></h3>
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <h3 class="text-xl font-bold text-gray-900">Bank Soal <span class="text-sm font-normal text-gray-500">({{ $questions->total() }} soal)</span></h3>
+                    <form method="GET" class="flex gap-2">
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari soal..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-gray-50/50 w-48">
+                        <select name="category" class="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
+                            <option value="">Semua</option>
+                            <option value="mudah" {{ request('category') == 'mudah' ? 'selected' : '' }}>Mudah</option>
+                            <option value="sedang" {{ request('category') == 'sedang' ? 'selected' : '' }}>Sedang</option>
+                            <option value="sulit" {{ request('category') == 'sulit' ? 'selected' : '' }}>Sulit</option>
+                        </select>
+                        <button type="submit" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-colors"><i class="ph ph-magnifying-glass"></i></button>
+                        @if(request('search') || request('category'))
+                            <a href="{{ route('admin.courses.modules.show', [$course, $module]) }}" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-colors flex items-center"><i class="ph ph-x"></i></a>
+                        @endif
+                    </form>
                 </div>
 
                 <div class="space-y-5">
-                    @forelse($module->questions as $index => $question)
+                    @forelse($questions as $question)
                         <div class="p-5 border border-gray-100 rounded-2xl bg-gray-50/50">
                             <div class="flex justify-between items-start mb-3">
                                 <div class="flex items-center gap-2">
                                     <span class="inline-flex items-center justify-center bg-purple-600 text-white h-8 w-8 rounded-full font-bold text-sm flex-shrink-0">
-                                        {{ $index + 1 }}
+                                        {{ $questions->firstItem() + $loop->index }}
                                     </span>
                                     @if($question->category)
                                         <span class="px-2 py-0.5 text-xs rounded-full font-medium
@@ -126,6 +157,10 @@
                             <p class="text-sm text-gray-400">Import via CSV atau tambah soal manual.</p>
                         </div>
                     @endforelse
+
+                    <div class="pt-4">
+                        {{ $questions->links() }}
+                    </div>
                 </div>
             </div>
         </div>

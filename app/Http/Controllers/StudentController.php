@@ -21,22 +21,39 @@ class StudentController extends Controller
             ->get();
 
         $examIds = $exams->pluck('id');
-        $sessions = ExamSession::where('user_id', $user->id)
+        $allSessions = ExamSession::where('user_id', $user->id)
             ->whereIn('exam_id', $examIds)
+            ->orderBy('attempt_number')
             ->get()
-            ->keyBy('exam_id');
+            ->groupBy('exam_id');
 
-        $exams->map(function ($exam) use ($user, $sessions) {
+        $exams->map(function ($exam) use ($user, $allSessions) {
             $exam->questions_count = $exam->getQuestionsCount();
 
-            $session = $sessions->get($exam->id);
-            if ($session) {
-                $exam->session = $session;
-                $exam->status  = $session->finished_at ? 'finished' : 'in_progress';
+            $sessions = $allSessions->get($exam->id, collect());
+            $lastSession = $sessions->last();
+
+            if ($lastSession && !$lastSession->finished_at) {
+                $exam->session = $lastSession;
+                $exam->status  = 'in_progress';
+                $exam->attempt_number = $lastSession->attempt_number;
+            } elseif ($lastSession && $lastSession->finished_at) {
+                $exam->session = $lastSession;
+                $exam->attempt_number = $lastSession->attempt_number;
+                $exam->max_attempts = $exam->max_attempts ?? 1;
+
+                if ($lastSession->score < $exam->passing_grade && $lastSession->attempt_number < $exam->max_attempts) {
+                    $exam->status = 'remedial';
+                } else {
+                    $exam->status = 'finished';
+                }
             } else {
                 $exam->session = null;
-                $exam->status  = now() < $exam->start_time ? 'waiting' : 'available';
+                $exam->attempt_number = 0;
+                $exam->status = now() < $exam->start_time ? 'waiting' : 'available';
             }
+
+            $exam->total_attempts = $sessions->count();
             return $exam;
         });
 
@@ -51,12 +68,18 @@ class StudentController extends Controller
             abort(403, 'Anda tidak memiliki akses ke ujian ini.');
         }
 
-        $session = ExamSession::where('user_id', $user->id)->where('exam_id', $exam->id)->first();
-        if ($session && $session->finished_at) {
-            return redirect()->route('student.dashboard')->with('error', 'Anda sudah menyelesaikan ujian ini.');
-        }
+        $lastSession = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->orderByDesc('attempt_number')
+            ->first();
 
-        return view('student.exams.show', compact('exam', 'session'));
+        $canRemedial = $lastSession && $lastSession->finished_at
+            && $lastSession->score < $exam->passing_grade
+            && $lastSession->attempt_number < $exam->max_attempts;
+
+        $hasUnfinished = $lastSession && !$lastSession->finished_at;
+
+        return view('student.exams.show', compact('exam', 'lastSession', 'canRemedial', 'hasUnfinished'));
     }
 
     public function start(Exam $exam)
@@ -71,10 +94,32 @@ class StudentController extends Controller
             return redirect()->route('student.dashboard')->with('error', 'Ujian ini belum memiliki soal. Hubungi pengawas.');
         }
 
-        $session = ExamSession::firstOrCreate(
-            ['user_id' => $user->id, 'exam_id' => $exam->id],
-            ['started_at' => now()]
-        );
+        $lastSession = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->orderByDesc('attempt_number')
+            ->first();
+
+        if ($lastSession && !$lastSession->finished_at) {
+            return redirect()->route('student.exams.attempt', $exam);
+        }
+
+        $nextAttempt = $lastSession ? $lastSession->attempt_number + 1 : 1;
+
+        if ($nextAttempt > 1) {
+            if ($lastSession->score >= $exam->passing_grade) {
+                return redirect()->route('student.dashboard')->with('error', 'Anda sudah lulus ujian ini.');
+            }
+            if ($nextAttempt > $exam->max_attempts) {
+                return redirect()->route('student.dashboard')->with('error', 'Batas percobaan ujian telah habis.');
+            }
+        }
+
+        $session = ExamSession::create([
+            'user_id'        => $user->id,
+            'exam_id'        => $exam->id,
+            'started_at'     => now(),
+            'attempt_number' => $nextAttempt,
+        ]);
 
         return redirect()->route('student.exams.attempt', $exam);
     }
@@ -83,16 +128,15 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        // Bug Fix #3: Ensure student belongs to exam's classroom
         if ($exam->classroom_id !== $user->classroom_id) {
             abort(403, 'Anda tidak berhak mengakses ujian ini.');
         }
 
-        $session = ExamSession::where('user_id', $user->id)->where('exam_id', $exam->id)->firstOrFail();
-
-        if ($session->finished_at) {
-            return redirect()->route('student.dashboard')->with('error', 'Ujian telah selesai.');
-        }
+        $session = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->whereNull('finished_at')
+            ->orderByDesc('attempt_number')
+            ->firstOrFail();
 
         // Calculate remaining time
         $endTimeBasedOnDuration = $session->started_at->addMinutes($exam->duration_minutes);
@@ -120,11 +164,11 @@ class StudentController extends Controller
     public function submit(Request $request, Exam $exam)
     {
         $user = auth()->user();
-        $session = ExamSession::where('user_id', $user->id)->where('exam_id', $exam->id)->firstOrFail();
-        
-        if ($session->finished_at) {
-            return redirect()->route('student.dashboard');
-        }
+        $session = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->whereNull('finished_at')
+            ->orderByDesc('attempt_number')
+            ->firstOrFail();
 
         return $this->processSubmission($request, $session, $exam);
     }

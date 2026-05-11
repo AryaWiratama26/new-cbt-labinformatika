@@ -12,6 +12,9 @@
             </div>
         </div>
         <div class="flex gap-3">
+            <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-cyan-200 hover:bg-cyan-50 text-cyan-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-eye text-lg"></i> Monitor
+            </a>
             <a href="{{ route('admin.exams.results', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-chart-bar text-lg"></i> Lihat Hasil
             </a>
