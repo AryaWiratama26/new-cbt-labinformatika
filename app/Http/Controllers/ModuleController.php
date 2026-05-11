@@ -61,21 +61,39 @@ class ModuleController extends Controller
             'images_zip' => 'nullable|file|mimes:zip|max:10240',
         ]);
 
-        // Handle Images Zip
         if ($request->hasFile('images_zip')) {
             $zip = new \ZipArchive;
             if ($zip->open($request->file('images_zip')->getRealPath()) === true) {
-                $zip->extractTo(storage_path('app/public/questions'));
+                $extractPath = storage_path('app/public/questions');
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $filename = $zip->getNameIndex($i);
+                    $realPath = realpath($extractPath . '/' . $filename);
+                    if ($realPath === false || !str_starts_with($realPath, realpath($extractPath) . '/')) {
+                        continue;
+                    }
+                }
+                $zip->extractTo($extractPath);
                 $zip->close();
             }
         }
 
         $file = $request->file('csv_file');
-        $data = array_map('str_getcsv', file($file->getRealPath()));
-        array_shift($data); // Remove header
+        $contents = file_get_contents($file->getRealPath());
+        if (substr($contents, 0, 3) === "\xEF\xBB\xBF") {
+            $contents = substr($contents, 3);
+        }
+        $data = array_map('str_getcsv', explode("\n", $contents));
+
+        $header = array_shift($data);
+        if ($header === null) {
+            return redirect()->route('admin.courses.modules.show', [$course, $module])
+                ->with('error', 'File CSV kosong.');
+        }
 
         $importedCount = 0;
         foreach ($data as $row) {
+            if (!is_array($row) || count($row) < 7) continue;
+
             $pertanyaan = trim($row[0] ?? '');
             $gambar     = trim($row[1] ?? '');
             $opsiA      = trim($row[2] ?? '');
@@ -83,6 +101,10 @@ class ModuleController extends Controller
             $opsiC      = trim($row[4] ?? '');
             $opsiD      = trim($row[5] ?? '');
             $kunci      = strtoupper(trim($row[6] ?? 'A'));
+
+            if (!in_array($kunci, ['A', 'B', 'C', 'D'])) {
+                $kunci = 'A';
+            }
 
             if ($pertanyaan) {
                 $question = $module->questions()->create([
@@ -120,6 +142,8 @@ class ModuleController extends Controller
             'options'        => 'required|array|min:4',
             'options.*'      => 'required|string',
             'correct_option' => 'required|in:0,1,2,3',
+            'category'       => 'nullable|in:mudah,sedang,sulit',
+            'explanation'    => 'nullable|string',
         ]);
 
         $imagePath = null;
@@ -128,8 +152,10 @@ class ModuleController extends Controller
         }
 
         $question = $module->questions()->create([
-            'content' => $request->content,
-            'image'   => $imagePath,
+            'content'     => $request->content,
+            'image'       => $imagePath,
+            'category'    => $request->category,
+            'explanation' => $request->explanation,
         ]);
 
         foreach ($request->options as $index => $optionContent) {
@@ -143,11 +169,81 @@ class ModuleController extends Controller
             ->with('success', 'Soal berhasil ditambahkan ke modul.');
     }
 
+    public function editQuestion(Course $course, Module $module, Question $question)
+    {
+        $question->load('options');
+        return view('admin.modules.edit_question', compact('course', 'module', 'question'));
+    }
+
+    public function updateQuestion(Request $request, Course $course, Module $module, Question $question)
+    {
+        $request->validate([
+            'content'        => 'required|string',
+            'image'          => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'options'        => 'required|array|min:4',
+            'options.*'      => 'required|string',
+            'correct_option' => 'required|in:0,1,2,3',
+            'category'       => 'nullable|in:mudah,sedang,sulit',
+            'explanation'    => 'nullable|string',
+        ]);
+
+        $data = [
+            'content'     => $request->content,
+            'category'    => $request->category,
+            'explanation' => $request->explanation,
+        ];
+
+        if ($request->hasFile('image')) {
+            if ($question->image) {
+                $oldPath = ltrim($question->image, '/');
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+            $data['image'] = $request->file('image')->store('questions', 'public');
+        }
+
+        $question->update($data);
+
+        $question->options()->delete();
+        $correctIdx = (int) $request->correct_option;
+        foreach ($request->options as $index => $optionContent) {
+            $question->options()->create([
+                'content'    => $optionContent,
+                'is_correct' => ($index === $correctIdx),
+            ]);
+        }
+
+        return redirect()->route('admin.courses.modules.show', [$course, $module])
+            ->with('success', 'Soal berhasil diperbarui.');
+    }
+
+    public function duplicateQuestion(Course $course, Module $module, Question $question)
+    {
+        $question->load('options');
+
+        $newQuestion = $module->questions()->create([
+            'content'     => $question->content . ' (copy)',
+            'image'       => $question->image,
+            'category'    => $question->category,
+            'explanation' => $question->explanation,
+        ]);
+
+        foreach ($question->options as $option) {
+            $newQuestion->options()->create([
+                'content'    => $option->content,
+                'is_correct' => $option->is_correct,
+            ]);
+        }
+
+        return redirect()->route('admin.courses.modules.show', [$course, $module])
+            ->with('success', 'Soal berhasil digandakan.');
+    }
+
     public function destroyQuestion(Course $course, Module $module, Question $question)
     {
         if ($question->image) {
-            // Normalize path: strip leading 'storage/' or 'public/' if present
-            $path = preg_replace('#^(storage/|public/)#', '', $question->image);
+            $path = ltrim($question->image, '/');
             if (Storage::disk('public')->exists($path)) {
                 Storage::disk('public')->delete($path);
             }

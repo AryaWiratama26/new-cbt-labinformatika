@@ -82,13 +82,7 @@ class ExamController extends Controller
     {
         $exam->load('course', 'classroom', 'module');
 
-        // Load questions from module if attached, else from exam directly
-        if ($exam->module_id) {
-            $questions = \App\Models\Question::where('module_id', $exam->module_id)->with('options')->get();
-        } else {
-            $exam->load('questions.options');
-            $questions = $exam->getRelation('questions');
-        }
+        $questions = $exam->getQuestions();
 
         return view('admin.exams.show', compact('exam', 'questions'));
     }

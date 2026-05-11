@@ -13,20 +13,13 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        // Eager load sessions to avoid N+1 (Bug Fix #5)
         $exams = Exam::where('classroom_id', $user->classroom_id)
             ->where('is_active', true)
             ->where('end_time', '>', now())
             ->with(['course', 'module'])
-            ->withCount([
-                'questions as questions_count' => function ($q) {
-                    // count from module if module exists
-                },
-            ])
             ->orderBy('start_time', 'asc')
             ->get();
 
-        // Load all sessions for this user in one query
         $examIds = $exams->pluck('id');
         $sessions = ExamSession::where('user_id', $user->id)
             ->whereIn('exam_id', $examIds)
@@ -34,10 +27,7 @@ class StudentController extends Controller
             ->keyBy('exam_id');
 
         $exams->map(function ($exam) use ($user, $sessions) {
-            // Count questions: prefer module's questions if module exists
-            if ($exam->module_id) {
-                $exam->questions_count = \App\Models\Question::where('module_id', $exam->module_id)->count();
-            }
+            $exam->questions_count = $exam->getQuestionsCount();
 
             $session = $sessions->get($exam->id);
             if ($session) {
@@ -77,7 +67,7 @@ class StudentController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        if ($exam->questions()->count() === 0) {
+        if ($exam->getQuestionsCount() === 0) {
             return redirect()->route('student.dashboard')->with('error', 'Ujian ini belum memiliki soal. Hubungi pengawas.');
         }
 
@@ -113,12 +103,13 @@ class StudentController extends Controller
             return $this->autoSubmit($session, $exam);
         }
 
-        // Load questions: from module if exists, else directly from exam
-        if ($exam->module_id) {
-            $questions = \App\Models\Question::where('module_id', $exam->module_id)->with('options')->get();
-        } else {
-            $exam->load(['questions.options']);
-            $questions = $exam->questions;
+        $questions = $exam->getQuestions();
+
+        $questions = $questions->shuffle();
+
+        foreach ($questions as $question) {
+            $options = $question->options->shuffle();
+            $question->setRelation('options', $options);
         }
 
         $existingAnswers = Answer::where('exam_session_id', $session->id)->pluck('option_id', 'question_id')->toArray();
@@ -144,13 +135,7 @@ class StudentController extends Controller
 
         $correctCount = 0;
 
-        // Use module questions if available
-        if ($exam->module_id) {
-            $questions = \App\Models\Question::where('module_id', $exam->module_id)->with('options')->get();
-        } else {
-            $exam->load('questions.options');
-            $questions = $exam->questions;
-        }
+        $questions = $exam->getQuestions();
 
         $totalQuestions = $questions->count();
 
@@ -184,11 +169,7 @@ class StudentController extends Controller
     {
         $correctCount = 0;
 
-        if ($exam->module_id) {
-            $totalQuestions = \App\Models\Question::where('module_id', $exam->module_id)->count();
-        } else {
-            $totalQuestions = $exam->questions()->count();
-        }
+        $totalQuestions = $exam->getQuestionsCount();
 
         $answers = Answer::where('exam_session_id', $session->id)->with('option')->get();
         foreach ($answers as $answer) {

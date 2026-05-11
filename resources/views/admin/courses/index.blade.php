@@ -34,7 +34,7 @@
                         <input type="text" name="name" value="{{ old('name') }}" required class="block w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50" placeholder="Contoh: Basis Data">
                         @error('name')<p class="text-sm text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>
-                    <button type="submit" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-2.5 rounded-xl font-medium transition-colors">
+                    <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-2.5 rounded-xl font-medium transition-colors">
                         Simpan Matkul
                     </button>
                 </form>

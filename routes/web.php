@@ -24,10 +24,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/admin/students', [AdminController::class, 'students'])->name('admin.students.index');
         Route::get('/admin/students/create', [AdminController::class, 'createStudent'])->name('admin.students.create');
         Route::post('/admin/students', [AdminController::class, 'storeStudent'])->name('admin.students.store');
+        Route::get('/admin/students/{user}/edit', [AdminController::class, 'editStudent'])->name('admin.students.edit');
+        Route::put('/admin/students/{user}', [AdminController::class, 'updateStudent'])->name('admin.students.update');
+        Route::post('/admin/students/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('admin.students.reset_password');
         Route::delete('/admin/students/{user}', [AdminController::class, 'destroyStudent'])->name('admin.students.destroy');
+        Route::post('/admin/students/bulk-delete', [AdminController::class, 'bulkDeleteStudents'])->name('admin.students.bulk_delete');
+        Route::get('/admin/students/export', [AdminController::class, 'exportStudents'])->name('admin.students.export');
+        Route::get('/admin/students/move', [AdminController::class, 'moveStudentsForm'])->name('admin.students.move.form');
+        Route::post('/admin/students/move', [AdminController::class, 'moveStudents'])->name('admin.students.move');
 
         // Classrooms
         Route::get('/admin/classrooms', [AdminController::class, 'classrooms'])->name('admin.classrooms');
+        Route::post('/admin/classrooms', [AdminController::class, 'storeClassroom'])->name('admin.classrooms.store');
+        Route::put('/admin/classrooms/{classroom}', [AdminController::class, 'updateClassroom'])->name('admin.classrooms.update');
+        Route::delete('/admin/classrooms/{classroom}', [AdminController::class, 'destroyClassroom'])->name('admin.classrooms.destroy');
 
         // Courses (with nested Modules)
         Route::resource('admin/courses', \App\Http\Controllers\CourseController::class)->names('admin.courses');
@@ -44,6 +54,9 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{module}/import-questions', [\App\Http\Controllers\ModuleController::class, 'importQuestions'])->name('import_questions');
             Route::get('/{module}/questions/create', [\App\Http\Controllers\ModuleController::class, 'createQuestion'])->name('questions.create');
             Route::post('/{module}/questions', [\App\Http\Controllers\ModuleController::class, 'storeQuestion'])->name('questions.store');
+            Route::get('/{module}/questions/{question}/edit', [\App\Http\Controllers\ModuleController::class, 'editQuestion'])->name('questions.edit');
+            Route::put('/{module}/questions/{question}', [\App\Http\Controllers\ModuleController::class, 'updateQuestion'])->name('questions.update');
+            Route::post('/{module}/questions/{question}/duplicate', [\App\Http\Controllers\ModuleController::class, 'duplicateQuestion'])->name('questions.duplicate');
             Route::delete('/{module}/questions/{question}', [\App\Http\Controllers\ModuleController::class, 'destroyQuestion'])->name('questions.destroy');
         });
 

@@ -90,13 +90,13 @@
                 <input type="hidden" name="is_active" value="0">
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" name="is_active" value="1" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3b4d3b]"></div>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     <span class="ml-3 text-sm font-medium text-gray-700">Aktifkan Ujian Langsung</span>
                 </label>
             </div>
 
             <div class="pt-6">
-                <button type="submit" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3.5 rounded-xl font-medium transition-colors text-lg flex justify-center items-center gap-2">
+                <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-medium transition-colors text-lg flex justify-center items-center gap-2">
                     <i class="ph ph-floppy-disk"></i> Simpan Ujian
                 </button>
             </div>

@@ -10,7 +10,7 @@
             <a href="{{ route('admin.courses.index') }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-arrow-left text-lg"></i> Kembali
             </a>
-            <a href="{{ route('admin.courses.modules.create', $course) }}" class="inline-flex items-center gap-2 bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+            <a href="{{ route('admin.courses.modules.create', $course) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-plus text-lg"></i> Tambah Modul
             </a>
         </div>
@@ -59,7 +59,7 @@
                 </div>
                 <h4 class="text-lg font-bold text-gray-900 mb-1">Belum ada modul</h4>
                 <p class="text-gray-500 text-sm mb-4">Tambahkan modul praktikum untuk mata kuliah ini.</p>
-                <a href="{{ route('admin.courses.modules.create', $course) }}" class="inline-flex items-center gap-2 bg-[#3b4d3b] text-white py-2.5 px-5 rounded-xl font-medium text-sm">
+                <a href="{{ route('admin.courses.modules.create', $course) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-5 rounded-xl font-medium text-sm">
                     <i class="ph ph-plus"></i> Tambah Modul Pertama
                 </a>
             </div>

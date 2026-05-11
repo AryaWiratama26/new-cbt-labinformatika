@@ -8,7 +8,7 @@
             <p class="text-gray-500">Buat jadwal ujian dan kelola soal-soalnya.</p>
         </div>
         <div>
-            <a href="{{ route('admin.exams.create') }}" class="inline-flex items-center gap-2 bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-2.5 px-5 rounded-xl font-medium transition-colors shadow-sm">
+            <a href="{{ route('admin.exams.create') }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-5 rounded-xl font-medium transition-colors shadow-sm">
                 <i class="ph ph-plus-circle text-xl"></i> Buat Ujian Baru
             </a>
         </div>

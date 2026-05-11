@@ -36,7 +36,7 @@
             <div>
                 <span class="block text-xs text-gray-500 mb-1">Total Soal</span>
                 <span class="font-medium text-gray-900">
-                    {{ $exam->module_id ? \App\Models\Question::where('module_id', $exam->module_id)->count() : $exam->questions()->count() }} Butir
+                    {{ $exam->getQuestionsCount() }} Butir
                 </span>
             </div>
         </div>
@@ -52,7 +52,7 @@
 
         <form action="{{ route('student.exams.start', $exam) }}" method="POST">
             @csrf
-            <button type="submit" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2">
+            <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2">
                 <i class="ph-fill ph-play-circle"></i> 
                 {{ $session ? 'Lanjutkan Pengerjaan' : 'Mulai Kerjakan Sekarang' }}
             </button>

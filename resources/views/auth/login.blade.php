@@ -57,7 +57,7 @@
 
                 <div class="pt-2">
                     <button type="submit"
-                        class="w-full flex items-center justify-center gap-2 bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3.5 px-4 rounded-xl font-medium transition-colors shadow-sm">
+                        class="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white py-3.5 px-4 rounded-xl font-medium transition-colors shadow-sm">
                         <span>Masuk Sekarang</span>
                         <i class="ph ph-arrow-right font-bold"></i>
                     </button>

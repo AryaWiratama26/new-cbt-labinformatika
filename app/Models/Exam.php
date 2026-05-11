@@ -28,18 +28,30 @@ class Exam extends Model
         return $this->belongsTo(Classroom::class);
     }
 
-    /**
-     * Questions come from the module's bank, not directly from exam.
-     * This accessor provides backward-compat when a module exists.
-     */
     public function questions()
     {
+        return $this->hasMany(Question::class, 'exam_id');
+    }
+
+    public function moduleQuestions()
+    {
+        return $this->hasManyThrough(Question::class, Module::class, 'id', 'module_id', 'module_id');
+    }
+
+    public function getQuestions()
+    {
         if ($this->module_id) {
-            // Return module's questions via hasManyThrough-like approach
-            return $this->module->questions()->with('options');
+            return Question::where('module_id', $this->module_id)->with('options')->get();
         }
-        // Legacy: questions tied directly to exam
-        return $this->hasMany(Question::class);
+        return $this->questions()->with('options')->get();
+    }
+
+    public function getQuestionsCount()
+    {
+        if ($this->module_id) {
+            return Question::where('module_id', $this->module_id)->count();
+        }
+        return $this->questions()->count();
     }
 
     public function examSessions()

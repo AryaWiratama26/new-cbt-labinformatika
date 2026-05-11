@@ -15,7 +15,7 @@
             <a href="{{ route('admin.exams.results', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-chart-bar text-lg"></i> Lihat Hasil
             </a>
-            <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-2 bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+            <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-pencil-simple text-lg"></i> Edit Jadwal
             </a>
         </div>

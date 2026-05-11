@@ -16,7 +16,7 @@
     @auth
     <nav class="bg-white border-b border-gray-200 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-3">
-            <img src="{{ asset('images/logo-upb.png') }}" alt="Logo Universitas" class="h-8 object-contain onerror="this.src='https://placehold.co/100x100?text=Logo'">
+            <img src="{{ asset('images/logo-upb.png') }}" alt="Logo Universitas" class="h-8 object-contain" onerror="this.src='https://placehold.co/100x100?text=Logo'">
             <div>
                 <h1 class="font-bold text-gray-900 leading-tight">CBT Praktikum</h1>
                 <p class="text-xs text-gray-500">Universitas Pelita Bangsa</p>

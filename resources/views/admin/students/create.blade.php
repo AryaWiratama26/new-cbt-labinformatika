@@ -54,7 +54,7 @@
 
             <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
                 <a href="{{ route('admin.students.index') }}" class="px-6 py-3 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-xl font-medium transition-colors">Batal</a>
-                <button type="submit" class="px-6 py-3 bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white rounded-xl font-medium transition-colors">
+                <button type="submit" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium transition-colors">
                     Simpan Mahasiswa
                 </button>
             </div>

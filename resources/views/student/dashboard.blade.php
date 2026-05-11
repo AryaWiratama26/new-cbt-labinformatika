@@ -58,14 +58,11 @@
                 </div>
 
                 @if($exam->status === 'finished')
-                    @php
-                        $session = \App\Models\ExamSession::where('user_id', auth()->id())->where('exam_id', $exam->id)->first();
-                    @endphp
                     <div class="w-full bg-gray-50 text-gray-700 py-3 rounded-xl font-medium text-center border border-gray-200">
-                        Nilai: {{ $session->score ?? 0 }}
+                        Nilai: {{ $exam->session->score ?? 0 }}
                     </div>
                 @elseif($exam->status === 'in_progress')
-                    <a href="{{ route('student.exams.show', $exam) }}" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3 rounded-xl font-medium transition-colors text-center block">
+                    <a href="{{ route('student.exams.show', $exam) }}" class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-medium transition-colors text-center block">
                         Lanjutkan Ujian
                     </a>
                 @elseif($exam->status === 'available')
@@ -80,7 +77,7 @@
                             </button>
                         </div>
                     @else
-                        <a href="{{ route('student.exams.show', $exam) }}" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3 rounded-xl font-medium transition-colors text-center block">
+                        <a href="{{ route('student.exams.show', $exam) }}" class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-medium transition-colors text-center block">
                             Mulai Ujian ({{ $exam->questions_count }} Soal)
                         </a>
                     @endif

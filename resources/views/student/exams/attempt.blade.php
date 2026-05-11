@@ -84,14 +84,14 @@
                     @php
                         $isAnswered = isset($existingAnswers[$question->id]);
                     @endphp
-                    <a href="#q-{{ $question->id }}" class="nav-btn flex items-center justify-center h-10 rounded-lg text-sm font-semibold transition-colors border {{ $isAnswered ? 'bg-[#3b4d3b] text-white border-[#3b4d3b]' : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary' }}" data-qid="{{ $question->id }}">
+                    <a href="#q-{{ $question->id }}" class="nav-btn flex items-center justify-center h-10 rounded-lg text-sm font-semibold transition-colors border {{ $isAnswered ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary' }}" data-qid="{{ $question->id }}">
                         {{ $index + 1 }}
                     </a>
                 @endforeach
             </div>
 
             <div class="mt-12">
-                <button type="button" onclick="confirmSubmit()" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-sm">
+                <button type="button" onclick="confirmSubmit()" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-sm">
                     <i class="ph-fill ph-check-circle text-xl"></i> Kumpulkan Ujian
                 </button>
             </div>
@@ -101,7 +101,7 @@
 
     <!-- Mobile Submit Button (Sticky Bottom) -->
     <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-20">
-        <button type="button" onclick="confirmSubmit()" class="w-full bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
+        <button type="button" onclick="confirmSubmit()" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
             <i class="ph-fill ph-check-circle text-xl"></i> Kumpulkan Ujian
         </button>
     </div>
@@ -136,7 +136,7 @@
                     const navBtn = document.querySelector(`.nav-btn[data-qid="${qid}"]`);
                     if(navBtn) {
                         navBtn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
-                        navBtn.classList.add('bg-[#3b4d3b]', 'text-white', 'border-[#3b4d3b]');
+                        navBtn.classList.add('bg-primary', 'text-white', 'border-primary');
                     }
                 }
             });
