@@ -10,8 +10,13 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
+    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
+
+    public function classroom()
+    {
+        return $this->belongsTo(Classroom::class);
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -20,7 +25,10 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
+        'role',
+        'classroom_id',
         'password',
     ];
 

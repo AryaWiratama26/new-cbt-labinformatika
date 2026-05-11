@@ -13,8 +13,11 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->string('username')->unique();
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email')->nullable()->unique();
+            $table->foreignId('classroom_id')->nullable()->constrained()->nullOnDelete();
+            $table->enum('role', ['admin', 'mahasiswa'])->default('mahasiswa');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

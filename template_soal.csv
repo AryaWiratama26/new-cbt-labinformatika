@@ -1,0 +1,6 @@
+Pertanyaan,Nama_File_Gambar,Opsi_A,Opsi_B,Opsi_C,Opsi_D,Opsi_Benar
+"Siapakah penemu bola lampu?","",Edison,Tesla,Einstein,Newton,A
+"Perhatikan diagram berikut. Ini disebut diagram apa?","usecase.png","Use Case","Activity","Class","Sequence",A
+"Berapakah hasil dari 5 + 7?","",10,11,12,13,C
+"Warna primer terdiri dari apa saja?","",RGB,CMYK,"Merah, Kuning, Biru","Hitam, Putih",C
+"Ibukota negara Indonesia adalah?","jakarta.jpg",Bandung,Surabaya,Jakarta,Medan,C

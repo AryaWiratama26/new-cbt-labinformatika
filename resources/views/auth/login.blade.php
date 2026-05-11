@@ -1,0 +1,70 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="flex-grow flex items-center justify-center p-6">
+    <div class="max-w-4xl w-full grid md:grid-cols-2 gap-12 items-center">
+        
+        <!-- Left Side: Branding -->
+        <div>
+            <div class="bg-white inline-flex p-3 rounded-2xl shadow-sm mb-6">
+                <img src="{{ asset('images/logo-upb.png') }}" alt="Logo" class="h-12 w-12 object-contain" onerror="this.style.display='none'">
+            </div>
+            <div class="bg-white inline-flex p-3 rounded-2xl shadow-sm mb-6">
+                <img src="{{ asset('images/logo-aslab.jpeg') }}" alt="Logo" class="h-12 w-12 object-contain" onerror="this.style.display='none'">
+            </div>
+            <p class="text-sm font-semibold text-gray-500 tracking-wider uppercase mb-2">Universitas Pelita Bangsa</p>
+            <h1 class="text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-4 tracking-tight">
+                Computer<br>Based Test.
+            </h1>
+            <p class="text-gray-600 text-lg leading-relaxed max-w-md">
+                Selamat datang di platform ujian praktikum online. Silakan masuk menggunakan NIM atau kredensial yang telah diberikan.
+            </p>
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="bg-white p-8 md:p-10 rounded-[2rem] shadow-xl shadow-gray-200/50">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Masuk ke Akun Anda</h2>
+            
+            <form method="POST" action="{{ route('login') }}" class="space-y-5">
+                @csrf
+                
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1.5">Username / NIM</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i class="ph ph-user text-gray-400 text-lg"></i>
+                        </div>
+                        <input type="text" name="username" id="username" value="{{ old('username') }}" required autofocus
+                            class="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow bg-gray-50/50"
+                            placeholder="Masukkan NIM Anda">
+                    </div>
+                    @error('username')
+                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i class="ph ph-lock-key text-gray-400 text-lg"></i>
+                        </div>
+                        <input type="password" name="password" id="password" required
+                            class="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow bg-gray-50/50"
+                            placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit"
+                        class="w-full flex items-center justify-center gap-2 bg-[#3b4d3b] hover:bg-[#2d3b2d] text-white py-3.5 px-4 rounded-xl font-medium transition-colors shadow-sm">
+                        <span>Masuk Sekarang</span>
+                        <i class="ph ph-arrow-right font-bold"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+    </div>
+</div>
+@endsection
