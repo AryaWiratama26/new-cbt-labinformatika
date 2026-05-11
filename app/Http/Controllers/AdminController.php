@@ -10,6 +10,7 @@ use App\Models\ExamSession;
 use App\Models\Course;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -365,5 +366,105 @@ class AdminController extends Controller
         }
 
         return redirect()->back()->with('success', $message);
+    }
+
+    public function classroomRecap(Classroom $classroom)
+    {
+        $classroom->loadCount('users');
+
+        $exams = Exam::where('classroom_id', $classroom->id)
+            ->where('is_active', true)
+            ->with('course')
+            ->orderBy('start_time')
+            ->get();
+
+        $students = User::where('role', 'mahasiswa')
+            ->where('classroom_id', $classroom->id)
+            ->orderBy('name')
+            ->get();
+
+        $sessions = ExamSession::whereIn('exam_id', $exams->pluck('id'))
+            ->whereIn('user_id', $students->pluck('id'))
+            ->orderBy('attempt_number')
+            ->get()
+            ->groupBy(fn($s) => $s->user_id . '_' . $s->exam_id);
+
+        $lastAttempts = ExamSession::select('user_id', 'exam_id', DB::raw('MAX(attempt_number) as max_attempt'))
+            ->whereIn('exam_id', $exams->pluck('id'))
+            ->whereIn('user_id', $students->pluck('id'))
+            ->groupBy('user_id', 'exam_id')
+            ->get()
+            ->keyBy(fn($s) => $s->user_id . '_' . $s->exam_id);
+
+        return view('admin.classrooms.recap', compact('classroom', 'exams', 'students', 'sessions', 'lastAttempts'));
+    }
+
+    public function classroomRecapCsv(Classroom $classroom)
+    {
+        $exams = Exam::where('classroom_id', $classroom->id)
+            ->where('is_active', true)
+            ->orderBy('start_time')
+            ->get();
+
+        $students = User::where('role', 'mahasiswa')
+            ->where('classroom_id', $classroom->id)
+            ->orderBy('name')
+            ->get();
+
+        $sessions = ExamSession::whereIn('exam_id', $exams->pluck('id'))
+            ->whereIn('user_id', $students->pluck('id'))
+            ->get()
+            ->groupBy(fn($s) => $s->user_id . '_' . $s->exam_id);
+
+        $filename = 'rekap_kelas_' . str_replace(['"', "\n", "\r"], '', $classroom->name) . '.csv';
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename={$filename}",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $exams->load('course');
+
+        $callback = function () use ($exams, $students, $sessions) {
+            $file = fopen('php://output', 'w');
+
+            $headerRow = ['No', 'NIM', 'Nama'];
+            foreach ($exams as $exam) {
+                $headerRow[] = $exam->title . ' (' . $exam->course->code . ')';
+            }
+            $headerRow[] = 'Rata-rata';
+            fputcsv($file, $headerRow);
+
+            foreach ($students as $i => $student) {
+                $row = [$i + 1, $student->username, $student->name];
+                $totalScore = 0;
+                $counted = 0;
+
+                foreach ($exams as $exam) {
+                    $key = $student->id . '_' . $exam->id;
+                    $session = $sessions->get($key);
+                    if ($session && $session->first()->finished_at) {
+                        $score = $session->last()->score ?? '-';
+                        $row[] = $score;
+                        if (is_numeric($score)) {
+                            $totalScore += $score;
+                            $counted++;
+                        }
+                    } else {
+                        $row[] = '-';
+                    }
+                }
+
+                $row[] = $counted > 0 ? round($totalScore / $counted, 1) : '-';
+                fputcsv($file, $row);
+            }
+
+            fclose($file);
+        };
+
+        return Response::stream($callback, 200, $headers);
     }
 }

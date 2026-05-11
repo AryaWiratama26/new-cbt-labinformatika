@@ -28,6 +28,7 @@
                 <a href="{{ route('admin.dashboard') }}" class="hover:text-primary transition-colors">Dashboard</a>
                 <a href="{{ route('admin.courses.index') }}" class="hover:text-primary transition-colors">Mata Kuliah</a>
                 <a href="{{ route('admin.exams.index') }}" class="hover:text-primary transition-colors">Ujian</a>
+                <a href="{{ route('admin.students.index') }}" class="hover:text-primary transition-colors">Mahasiswa</a>
             </div>
             @endif
 

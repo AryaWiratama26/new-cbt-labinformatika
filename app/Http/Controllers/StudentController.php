@@ -21,14 +21,30 @@ class StudentController extends Controller
             ->get();
 
         $examIds = $exams->pluck('id');
+
+        $moduleIds = $exams->pluck('module_id')->filter()->unique();
+        $moduleQuestionCounts = \App\Models\Question::whereIn('module_id', $moduleIds)
+            ->selectRaw('module_id, COUNT(*) as count')
+            ->groupBy('module_id')
+            ->pluck('count', 'module_id');
+        $directExamIds = $exams->whereNull('module_id')->pluck('id');
+        $examQuestionCounts = $directExamIds->isNotEmpty()
+            ? \App\Models\Question::whereIn('exam_id', $directExamIds)
+                ->selectRaw('exam_id, COUNT(*) as count')
+                ->groupBy('exam_id')
+                ->pluck('count', 'exam_id')
+            : collect();
+
         $allSessions = ExamSession::where('user_id', $user->id)
             ->whereIn('exam_id', $examIds)
             ->orderBy('attempt_number')
             ->get()
             ->groupBy('exam_id');
 
-        $exams->map(function ($exam) use ($user, $allSessions) {
-            $exam->questions_count = $exam->getQuestionsCount();
+        $exams->map(function ($exam) use ($user, $allSessions, $moduleQuestionCounts, $examQuestionCounts) {
+            $exam->questions_count = $exam->module_id
+                ? ($moduleQuestionCounts[$exam->module_id] ?? 0)
+                : ($examQuestionCounts[$exam->id] ?? $exam->getQuestionsCount());
 
             $sessions = $allSessions->get($exam->id, collect());
             $lastSession = $sessions->last();
@@ -128,7 +144,7 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        if ($exam->classroom_id !== $user->classroom_id) {
+        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time) {
             abort(403, 'Anda tidak berhak mengakses ujian ini.');
         }
 
@@ -159,6 +175,48 @@ class StudentController extends Controller
         $existingAnswers = Answer::where('exam_session_id', $session->id)->pluck('option_id', 'question_id')->toArray();
 
         return view('student.exams.attempt', compact('exam', 'session', 'endTime', 'existingAnswers', 'questions'));
+    }
+
+    public function saveAnswer(Request $request, Exam $exam)
+    {
+        $user = auth()->user();
+
+        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $session = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->whereNull('finished_at')
+            ->orderByDesc('attempt_number')
+            ->first();
+
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Tidak ada sesi ujian aktif.'], 400);
+        }
+
+        $request->validate([
+            'question_id' => 'required|exists:questions,id',
+            'option_id' => 'nullable|exists:options,id',
+        ]);
+
+        $examQuestionIds = $exam->getQuestions()->pluck('id')->toArray();
+        if (!in_array($request->question_id, $examQuestionIds)) {
+            return response()->json(['success' => false, 'message' => 'Soal tidak valid.'], 400);
+        }
+
+        if ($request->option_id) {
+            Answer::updateOrCreate(
+                ['exam_session_id' => $session->id, 'question_id' => $request->question_id],
+                ['option_id' => $request->option_id]
+            );
+        } else {
+            Answer::where('exam_session_id', $session->id)
+                ->where('question_id', $request->question_id)
+                ->delete();
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function submit(Request $request, Exam $exam)

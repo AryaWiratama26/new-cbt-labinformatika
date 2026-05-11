@@ -17,11 +17,16 @@
             <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
         </div>
     @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+        </div>
+    @endif
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <a href="{{ route('admin.students.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition-all group">
+        <a href="{{ route('admin.students.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-primary/20 hover:shadow-md transition-all group">
             <div class="flex items-center gap-3">
-                <div class="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <div class="h-12 w-12 rounded-xl bg-[#e8eaf5] flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <i class="ph ph-users text-xl"></i>
                 </div>
                 <div>
@@ -30,9 +35,9 @@
                 </div>
             </div>
         </a>
-        <a href="{{ route('admin.courses.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-purple-300 hover:shadow-md transition-all group">
+        <a href="{{ route('admin.courses.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-secondary/20 hover:shadow-md transition-all group">
             <div class="flex items-center gap-3">
-                <div class="h-12 w-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all">
+                <div class="h-12 w-12 rounded-xl bg-[#e8eaf5] flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all">
                     <i class="ph ph-books text-xl"></i>
                 </div>
                 <div>
@@ -41,9 +46,9 @@
                 </div>
             </div>
         </a>
-        <a href="{{ route('admin.classrooms') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all group">
+        <a href="{{ route('admin.classrooms') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-primary/20 hover:shadow-md transition-all group">
             <div class="flex items-center gap-3">
-                <div class="h-12 w-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                <div class="h-12 w-12 rounded-xl bg-[#e8eaf5] flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <i class="ph ph-chalkboard-teacher text-xl"></i>
                 </div>
                 <div>
@@ -52,9 +57,9 @@
                 </div>
             </div>
         </a>
-        <a href="{{ route('admin.exams.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-green-300 hover:shadow-md transition-all group">
+        <a href="{{ route('admin.exams.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-secondary/20 hover:shadow-md transition-all group">
             <div class="flex items-center gap-3">
-                <div class="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-all">
+                <div class="h-12 w-12 rounded-xl bg-[#e8eaf5] flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all">
                     <i class="ph ph-exam text-xl"></i>
                 </div>
                 <div>
@@ -66,20 +71,20 @@
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-green-200">
-            <p class="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">Ujian Hari Ini</p>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-primary/20">
+            <p class="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Ujian Hari Ini</p>
             <p class="text-3xl font-bold text-gray-900">{{ $examsToday }}</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-200">
-            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Sedang Berlangsung</p>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-secondary/20">
+            <p class="text-xs font-semibold text-secondary uppercase tracking-wide mb-1">Sedang Berlangsung</p>
             <p class="text-3xl font-bold text-gray-900">{{ $activeExams }}</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
-            <p class="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">Rata-rata Nilai</p>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-primary/20">
+            <p class="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Rata-rata Nilai</p>
             <p class="text-3xl font-bold text-gray-900">{{ $avgScore ? number_format($avgScore, 1) : '-' }}</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
-            <p class="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1">Partisipasi</p>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-secondary/20">
+            <p class="text-xs font-semibold text-secondary uppercase tracking-wide mb-1">Partisipasi</p>
             <p class="text-3xl font-bold text-gray-900">{{ $participationRate }}%</p>
         </div>
     </div>
@@ -121,7 +126,7 @@
             <h3 class="text-lg font-bold text-gray-900 mt-8 mb-4">Top 5 Mahasiswa (Rata-rata Nilai)</h3>
             <div class="space-y-2">
                 @forelse($topStudents as $i => $ts)
-                    <div class="flex items-center gap-3 p-2 rounded-lg {{ $i < 3 ? 'bg-amber-50' : '' }}">
+                    <div class="flex items-center gap-3 p-2 rounded-lg {{ $i < 3 ? 'bg-[#e8eaf5]' : '' }}">
                         <span class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">{{ $i + 1 }}</span>
                         <span class="font-medium text-gray-900 flex-grow">{{ $ts->user->name ?? 'Unknown' }}</span>
                         <span class="font-bold text-primary">{{ number_format($ts->avg_score, 1) }}</span>
@@ -158,7 +163,7 @@
         <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100">
             <div class="flex justify-between items-start mb-2">
                 <h3 class="text-xl font-bold text-gray-900">Import Data Mahasiswa</h3>
-                <a href="{{ route('admin.template_students') }}" class="text-sm text-primary hover:underline flex items-center gap-1 font-medium bg-green-50 px-3 py-1 rounded-lg">
+                <a href="{{ route('admin.template_students') }}" class="text-sm text-primary hover:underline flex items-center gap-1 font-medium bg-[#e8eaf5] px-3 py-1 rounded-lg">
                     <i class="ph ph-download-simple"></i> Template CSV
                 </a>
             </div>
@@ -167,7 +172,7 @@
                 @csrf
                 <div class="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:bg-gray-50 transition-colors">
                     <i class="ph ph-upload-simple text-4xl text-gray-400 mb-2"></i>
-                    <input type="file" name="csv_file" accept=".csv" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer">
+                    <input type="file" name="csv_file" accept=".csv" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#e8eaf5] file:text-primary hover:file:bg-[#dde0f0] cursor-pointer">
                 </div>
                 @error('csv_file') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
                 <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-medium transition-colors flex justify-center items-center gap-2">
@@ -180,33 +185,33 @@
             <h3 class="text-xl font-bold text-gray-900 mb-2">Akses Cepat</h3>
             <p class="text-sm text-gray-500 mb-6">Jalan pintas ke modul utama sistem.</p>
             <div class="space-y-3 flex-grow">
-                <a href="{{ route('admin.exams.index') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-green-200 hover:bg-green-50 transition-colors">
+                <a href="{{ route('admin.exams.index') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-primary/20 hover:bg-[#e8eaf5] transition-colors">
                     <div class="flex items-center gap-4">
-                        <div class="h-10 w-10 bg-green-100 text-green-600 rounded-lg flex items-center justify-center"><i class="ph ph-exam text-xl"></i></div>
-                        <div><p class="font-bold text-gray-900 group-hover:text-green-800">Manajemen Ujian</p><p class="text-xs text-gray-500">Buat ujian &amp; kelola bank soal</p></div>
+                        <div class="h-10 w-10 bg-[#e8eaf5] text-primary rounded-lg flex items-center justify-center"><i class="ph ph-exam text-xl"></i></div>
+                        <div><p class="font-bold text-gray-900 group-hover:text-primary">Manajemen Ujian</p><p class="text-xs text-gray-500">Buat ujian &amp; kelola bank soal</p></div>
                     </div>
-                    <i class="ph ph-caret-right text-gray-400 group-hover:text-green-600"></i>
+                    <i class="ph ph-caret-right text-gray-400 group-hover:text-primary"></i>
                 </a>
-                <a href="{{ route('admin.courses.index') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-colors">
+                <a href="{{ route('admin.courses.index') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-secondary/20 hover:bg-[#eeedf7] transition-colors">
                     <div class="flex items-center gap-4">
-                        <div class="h-10 w-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><i class="ph ph-books text-xl"></i></div>
-                        <div><p class="font-bold text-gray-900 group-hover:text-purple-800">Mata Kuliah</p><p class="text-xs text-gray-500">Daftar &amp; modul matkul</p></div>
+                        <div class="h-10 w-10 bg-[#eeedf7] text-secondary rounded-lg flex items-center justify-center"><i class="ph ph-books text-xl"></i></div>
+                        <div><p class="font-bold text-gray-900 group-hover:text-secondary">Mata Kuliah</p><p class="text-xs text-gray-500">Daftar &amp; modul matkul</p></div>
                     </div>
-                    <i class="ph ph-caret-right text-gray-400 group-hover:text-purple-600"></i>
+                    <i class="ph ph-caret-right text-gray-400 group-hover:text-secondary"></i>
                 </a>
-                <a href="{{ route('admin.students.index') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors">
+                <a href="{{ route('admin.students.index') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-primary/20 hover:bg-[#e8eaf5] transition-colors">
                     <div class="flex items-center gap-4">
-                        <div class="h-10 w-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="ph ph-users text-xl"></i></div>
-                        <div><p class="font-bold text-gray-900 group-hover:text-blue-800">Manajemen Mahasiswa</p><p class="text-xs text-gray-500">Edit, hapus, pindahkan kelas</p></div>
+                        <div class="h-10 w-10 bg-[#e8eaf5] text-primary rounded-lg flex items-center justify-center"><i class="ph ph-users text-xl"></i></div>
+                        <div><p class="font-bold text-gray-900 group-hover:text-primary">Manajemen Mahasiswa</p><p class="text-xs text-gray-500">Edit, hapus, pindahkan kelas</p></div>
                     </div>
-                    <i class="ph ph-caret-right text-gray-400 group-hover:text-blue-600"></i>
+                    <i class="ph ph-caret-right text-gray-400 group-hover:text-primary"></i>
                 </a>
-                <a href="{{ route('admin.classrooms') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50 transition-colors">
+                <a href="{{ route('admin.classrooms') }}" class="group flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-secondary/20 hover:bg-[#eeedf7] transition-colors">
                     <div class="flex items-center gap-4">
-                        <div class="h-10 w-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-xl"></i></div>
-                        <div><p class="font-bold text-gray-900 group-hover:text-orange-800">Kelas</p><p class="text-xs text-gray-500">CRUD kelas &amp; tahun ajaran</p></div>
+                        <div class="h-10 w-10 bg-[#eeedf7] text-secondary rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-xl"></i></div>
+                        <div><p class="font-bold text-gray-900 group-hover:text-secondary">Kelas</p><p class="text-xs text-gray-500">CRUD kelas &amp; tahun ajaran</p></div>
                     </div>
-                    <i class="ph ph-caret-right text-gray-400 group-hover:text-orange-600"></i>
+                    <i class="ph ph-caret-right text-gray-400 group-hover:text-secondary"></i>
                 </a>
             </div>
         </div>

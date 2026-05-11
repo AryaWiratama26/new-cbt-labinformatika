@@ -81,16 +81,16 @@
                             <td class="py-4 px-6 text-sm text-gray-500">{{ $student->created_at->format('d M Y') }}</td>
                             <td class="py-4 px-6 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <a href="{{ route('admin.students.edit', $student) }}" class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                                    <a href="{{ route('admin.students.edit', $student) }}" class="text-secondary hover:text-secondary-hover p-2 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Edit">
                                         <i class="ph ph-pencil-simple text-lg"></i>
                                     </a>
                                     <form action="{{ route('admin.students.reset_password', $student) }}" method="POST" class="inline-block">
                                         @csrf
-                                        <button type="submit" class="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-colors" title="Reset Password" onclick="return confirm('Reset password {{ $student->name }} ke NIM?')">
+                                        <button type="submit" class="text-primary hover:text-primary-hover p-2 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Reset Password" onclick="return confirm('Reset password ' + this.dataset.studentName + ' ke NIM?')" data-student-name="{{ $student->name }}">
                                             <i class="ph ph-key text-lg"></i>
                                         </button>
                                     </form>
-                                    <form action="{{ route('admin.students.destroy', $student) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus {{ $student->name }}?');">
+                                    <form action="{{ route('admin.students.destroy', $student) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus ' + this.querySelector('[data-student-name-del]')?.dataset?.studentNameDel + '?');"><input type="hidden" data-student-name-del data-student-name-del="{{ $student->name }}">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
                                             <i class="ph ph-trash text-lg"></i>

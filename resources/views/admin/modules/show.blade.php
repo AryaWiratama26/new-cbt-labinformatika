@@ -7,7 +7,7 @@
                 <i class="ph ph-arrow-left text-sm"></i> {{ $course->name }}
             </a>
             @if($module->module_number)
-                <p class="text-sm font-semibold text-purple-600">{{ $module->module_number }}</p>
+                <p class="text-sm font-semibold text-secondary">{{ $module->module_number }}</p>
             @endif
             <h2 class="text-3xl font-bold text-gray-900">{{ $module->name }}</h2>
         </div>
@@ -15,7 +15,7 @@
             <a href="{{ route('admin.template_questions') }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-download-simple"></i> Template CSV
             </a>
-            <a href="{{ route('admin.template_questions.docx') }}" class="inline-flex items-center gap-2 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+            <a href="{{ route('admin.template_questions.docx') }}" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-download-simple"></i> Template Word
             </a>
             <a href="{{ route('admin.courses.modules.questions.create', [$course, $module]) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
@@ -38,13 +38,13 @@
                 @csrf
                 <div>
                     <label class="text-xs font-semibold text-gray-600 mb-1 block">File CSV Soal *</label>
-                    <input type="file" name="csv_file" accept=".csv" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border border-gray-200 rounded-xl p-2">
+                    <input type="file" name="csv_file" accept=".csv" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#e8eaf5] file:text-primary hover:file:bg-[#dde0f0] cursor-pointer border border-gray-200 rounded-xl p-2">
                 </div>
                 <div>
                     <label class="text-xs font-semibold text-gray-600 mb-1 block">ZIP Gambar (Opsional)</label>
                     <input type="file" name="images_zip" accept=".zip" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 cursor-pointer border border-gray-200 rounded-xl p-2">
                 </div>
-                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-medium transition-colors flex justify-center items-center gap-2">
+                <button type="submit" class="w-full bg-secondary hover:bg-secondary-hover text-white py-3 rounded-xl font-medium transition-colors flex justify-center items-center gap-2">
                     <i class="ph ph-upload-simple"></i> Import Soal
                 </button>
             </form>
@@ -57,9 +57,9 @@
                 @csrf
                 <div>
                     <label class="text-xs font-semibold text-gray-600 mb-1 block">File .docx Soal *</label>
-                    <input type="file" name="docx_file" accept=".docx" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-xl p-2">
+                    <input type="file" name="docx_file" accept=".docx" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#e8eaf5] file:text-primary hover:file:bg-[#dde0f0] cursor-pointer border border-gray-200 rounded-xl p-2">
                 </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition-colors flex justify-center items-center gap-2">
+                <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-medium transition-colors flex justify-center items-center gap-2">
                     <i class="ph ph-upload-simple"></i> Import dari Word
                 </button>
             </form>
@@ -89,7 +89,7 @@
                         <div class="p-5 border border-gray-100 rounded-2xl bg-gray-50/50">
                             <div class="flex justify-between items-start mb-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="inline-flex items-center justify-center bg-purple-600 text-white h-8 w-8 rounded-full font-bold text-sm flex-shrink-0">
+                                    <span class="inline-flex items-center justify-center bg-secondary text-white h-8 w-8 rounded-full font-bold text-sm flex-shrink-0">
                                         {{ $questions->firstItem() + $loop->index }}
                                     </span>
                                     @if($question->category)
@@ -102,12 +102,12 @@
                                     @endif
                                 </div>
                                 <div class="flex gap-1">
-                                    <a href="{{ route('admin.courses.modules.questions.edit', [$course, $module, $question]) }}" class="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                                    <a href="{{ route('admin.courses.modules.questions.edit', [$course, $module, $question]) }}" class="text-secondary hover:text-secondary-hover p-1.5 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Edit">
                                         <i class="ph ph-pencil-simple text-lg"></i>
                                     </a>
                                     <form action="{{ route('admin.courses.modules.questions.duplicate', [$course, $module, $question]) }}" method="POST" class="inline">
                                         @csrf
-                                        <button type="submit" class="text-green-500 hover:text-green-700 p-1.5 rounded-lg hover:bg-green-50 transition-colors" title="Duplikat">
+                                        <button type="submit" class="text-primary hover:text-primary-hover p-1.5 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Duplikat">
                                             <i class="ph ph-copy text-lg"></i>
                                         </button>
                                     </form>
@@ -142,9 +142,9 @@
                             </div>
 
                             @if($question->explanation)
-                                <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                                    <p class="text-xs font-semibold text-blue-700 mb-1"><i class="ph ph-info"></i> Pembahasan:</p>
-                                    <p class="text-sm text-blue-800">{{ $question->explanation }}</p>
+                                <div class="mt-3 p-3 bg-[#e8eaf5] border border-primary/10 rounded-xl">
+                                    <p class="text-xs font-semibold text-primary mb-1"><i class="ph ph-info"></i> Pembahasan:</p>
+                                    <p class="text-sm text-gray-700">{{ $question->explanation }}</p>
                                 </div>
                             @endif
                         </div>

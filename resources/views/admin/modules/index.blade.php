@@ -27,13 +27,13 @@
             <div class="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                 <div class="p-6 flex-grow">
                     <div class="flex justify-between items-start mb-4">
-                        <div class="h-12 w-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+                        <div class="h-12 w-12 bg-[#e8eaf5] text-primary rounded-xl flex items-center justify-center">
                             <i class="ph ph-stack text-2xl"></i>
                         </div>
                         <span class="text-xs font-medium px-3 py-1 bg-gray-100 text-gray-600 rounded-full">{{ $module->questions_count }} Soal</span>
                     </div>
                     @if($module->module_number)
-                        <p class="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-1">{{ $module->module_number }}</p>
+                        <p class="text-xs font-semibold text-secondary uppercase tracking-wide mb-1">{{ $module->module_number }}</p>
                     @endif
                     <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $module->name }}</h3>
                     @if($module->description)
@@ -41,7 +41,7 @@
                     @endif
                 </div>
                 <div class="px-6 pb-6 flex gap-3">
-                    <a href="{{ route('admin.courses.modules.show', [$course, $module]) }}" class="flex-1 text-center py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl font-medium transition-colors text-sm">
+                    <a href="{{ route('admin.courses.modules.show', [$course, $module]) }}" class="flex-1 text-center py-2.5 bg-[#e8eaf5] hover:bg-[#dde0f0] text-primary rounded-xl font-medium transition-colors text-sm">
                         Kelola Soal
                     </a>
                     <form action="{{ route('admin.courses.modules.destroy', [$course, $module]) }}" method="POST" onsubmit="return confirm('Hapus modul dan semua soalnya?')">

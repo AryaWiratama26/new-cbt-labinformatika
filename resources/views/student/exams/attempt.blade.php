@@ -91,7 +91,7 @@
             </div>
 
             <div class="mt-12">
-                <button type="button" onclick="confirmSubmit()" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-sm">
+                <button type="button" form="exam-form" onclick="confirmSubmit()" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-sm">
                     <i class="ph-fill ph-check-circle text-xl"></i> Kumpulkan Ujian
                 </button>
             </div>
@@ -101,40 +101,102 @@
 
     <!-- Mobile Submit Button (Sticky Bottom) -->
     <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-20">
-        <button type="button" onclick="confirmSubmit()" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
+        <button type="button" form="exam-form" onclick="confirmSubmit()" class="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
             <i class="ph-fill ph-check-circle text-xl"></i> Kumpulkan Ujian
         </button>
     </div>
 
+    <!-- Submit Confirmation Modal -->
+    <div id="submit-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" style="backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-[2rem] shadow-2xl max-w-md w-full p-8 animate-[fadeIn_0.2s_ease-out]">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 text-yellow-600 mb-4">
+                    <i class="ph ph-warning-circle text-3xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Kumpulkan Ujian?</h3>
+                <p class="text-gray-500 mt-1">Pastikan Anda sudah menjawab semua soal.</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-2xl p-5 mb-6 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">Soal Terjawab</span>
+                    <span class="font-bold text-gray-900" id="summary-answered">0</span>
+                </div>
+                <div class="flex items-center justify-between border-t border-gray-200 pt-3">
+                    <span class="text-gray-600">Total Soal</span>
+                    <span class="font-bold text-gray-900" id="summary-total">0</span>
+                </div>
+                <div id="summary-remaining" class="text-sm text-green-600 font-medium pt-1"></div>
+                <div id="summary-answered-detail" class="text-xs text-gray-400"></div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeModal()" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors">
+                    <i class="ph ph-x-circle text-lg inline-block mr-1.5 align-middle"></i> Batal
+                </button>
+                <button type="button" onclick="doSubmit()" class="flex-1 py-3.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                    <i class="ph-fill ph-check-circle text-lg"></i> Kumpulkan
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Logic Script -->
     <script>
-        // End Time provided from controller
         const endTimeStr = "{{ $endTime->toIso8601String() }}";
         const endTime = new Date(endTimeStr).getTime();
-        
+
         const timerElement = document.getElementById('countdown-timer');
         const form = document.getElementById('exam-form');
+        const csrfToken = document.querySelector('input[name="_token"]').value;
+        const saveUrl = "{{ route('student.exams.save_answer', $exam) }}";
+        let saving = false;
+        let pendingSave = null;
 
-        // Update Nav Buttons visual state when radio is clicked
+        async function saveAnswer(questionId, optionId) {
+            if (saving) {
+                pendingSave = { questionId, optionId };
+                return;
+            }
+            saving = true;
+            try {
+                const payload = { question_id: questionId, option_id: optionId, _token: csrfToken };
+                await fetch(saveUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                // silent
+            } finally {
+                saving = false;
+                if (pendingSave) {
+                    const next = pendingSave;
+                    pendingSave = null;
+                    saveAnswer(next.questionId, next.optionId);
+                }
+            }
+        }
+
         const radios = document.querySelectorAll('.option-radio');
         radios.forEach(radio => {
             radio.addEventListener('change', function() {
-                // Update styling of labels in this question
                 const questionDiv = this.closest('.question-card');
                 questionDiv.querySelectorAll('.option-label').forEach(label => {
                     label.classList.remove('border-primary', 'bg-primary/5', 'ring-1', 'ring-primary');
                     label.classList.add('border-gray-200');
                 });
-                
-                if(this.checked) {
+
+                if (this.checked) {
                     const label = this.closest('.option-label');
                     label.classList.remove('border-gray-200');
                     label.classList.add('border-primary', 'bg-primary/5', 'ring-1', 'ring-primary');
-                    
-                    // Update Nav Button
+
                     const qid = this.name.match(/\[(.*?)\]/)[1];
+                    saveAnswer(qid, this.value);
+
                     const navBtn = document.querySelector(`.nav-btn[data-qid="${qid}"]`);
-                    if(navBtn) {
+                    if (navBtn) {
                         navBtn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
                         navBtn.classList.add('bg-primary', 'text-white', 'border-primary');
                     }
@@ -142,8 +204,7 @@
             });
         });
 
-        // Timer Logic
-        const x = setInterval(function() {
+        const x = setInterval(function () {
             const now = new Date().getTime();
             const distance = endTime - now;
 
@@ -159,23 +220,44 @@
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-            const h = hours < 10 ? "0" + hours : hours;
-            const m = minutes < 10 ? "0" + minutes : minutes;
-            const s = seconds < 10 ? "0" + seconds : seconds;
+            timerElement.innerHTML = (hours < 10 ? "0" : "") + hours + ":" +
+                                    (minutes < 10 ? "0" : "") + minutes + ":" +
+                                    (seconds < 10 ? "0" : "") + seconds;
 
-            timerElement.innerHTML = h + ":" + m + ":" + s;
-            
-            // Warning style if < 5 minutes
-            if(distance < 5 * 60 * 1000) {
+            if (distance < 5 * 60 * 1000) {
                 timerElement.parentElement.classList.add('animate-pulse');
             }
         }, 1000);
 
-        function confirmSubmit() {
-            if(confirm('Apakah Anda yakin ingin mengumpulkan ujian ini? Pastikan semua soal telah terjawab.')) {
-                form.submit();
-            }
+        function updateSummary() {
+            const answered = document.querySelectorAll('.nav-btn.bg-primary').length;
+            const total = document.querySelectorAll('.question-card').length;
+            document.getElementById('summary-answered').textContent = answered;
+            document.getElementById('summary-total').textContent = total;
+
+            const el = document.getElementById('summary-remaining');
+            const remaining = total - answered;
+            el.textContent = remaining > 0 ? `${remaining} soal belum terjawab` : 'Semua soal sudah terjawab';
+            el.className = 'text-sm font-medium pt-1 ' + (remaining > 0 ? 'text-red-600' : 'text-green-600');
         }
+
+        function confirmSubmit() {
+            updateSummary();
+            document.getElementById('submit-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('submit-modal').classList.add('hidden');
+        }
+
+        function doSubmit() {
+            closeModal();
+            form.submit();
+        }
+
+        document.getElementById('submit-modal')?.addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
     </script>
 </body>
 </html>

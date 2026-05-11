@@ -117,7 +117,7 @@ class ModuleController extends Controller
         $isNewFormat = $colCount >= 8;
 
         foreach ($data as $row) {
-            if (!is_array($row) || count($row) < 7) continue;
+            if (!is_array($row) || count($row) < 6) continue;
 
             $pertanyaan = trim($row[0] ?? '');
             if (!$pertanyaan) continue;

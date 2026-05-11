@@ -34,11 +34,11 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Kelas <span class="text-red-500">*</span></label>
                 @if($classrooms->isEmpty())
-                    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-3">
+                    <div class="p-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 flex items-start gap-3">
                         <i class="ph ph-warning text-xl flex-shrink-0 mt-0.5"></i>
                         <div>
                             <p class="font-semibold text-sm">Belum ada kelas tersedia.</p>
-                            <p class="text-xs mt-1">Buat kelas terlebih dahulu sebelum menambah mahasiswa. <a href="{{ route('admin.classrooms') }}" class="underline font-bold hover:text-amber-900">Kelola Kelas →</a></p>
+                            <p class="text-xs mt-1">Buat kelas terlebih dahulu sebelum menambah mahasiswa. <a href="{{ route('admin.classrooms') }}" class="underline font-bold text-primary hover:text-primary-hover">Kelola Kelas →</a></p>
                         </div>
                     </div>
                 @else

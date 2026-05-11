@@ -59,7 +59,7 @@
                             <td class="py-4 px-6 text-gray-600">{{ $course->name }}</td>
                             <td class="py-4 px-6 text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('admin.courses.modules.index', $course) }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-purple-600 hover:text-purple-800 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+                                    <a href="{{ route('admin.courses.modules.index', $course) }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover px-3 py-1.5 bg-[#e8eaf5] hover:bg-[#dde0f0] rounded-lg transition-colors">
                                         <i class="ph ph-stack"></i> Modul
                                     </a>
                                     <form action="{{ route('admin.courses.destroy', $course) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus matkul ini?');">

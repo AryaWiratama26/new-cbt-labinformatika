@@ -17,6 +17,11 @@
             <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
         </div>
     @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+        </div>
+    @endif
 
     <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
         <form action="{{ route('admin.students.move') }}" method="POST" class="space-y-6">

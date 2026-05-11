@@ -13,15 +13,26 @@
             </div>
         </div>
         <div class="flex gap-3">
-            <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-cyan-200 hover:bg-cyan-50 text-cyan-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+            <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-eye text-lg"></i> Monitor
             </a>
+            <a href="{{ route('admin.exams.pdf', $exam) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-file-pdf text-lg"></i> PDF
+            </a>
+            <a href="{{ route('admin.exams.results.csv', $exam) }}" class="inline-flex items-center gap-2 bg-secondary hover:bg-[#3d3e8a] text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-file-csv text-lg"></i> CSV
+            </a>
             <button onclick="window.print()" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
-                <i class="ph ph-printer text-lg"></i> Cetak Laporan
+                <i class="ph ph-printer text-lg"></i> Cetak
             </button>
         </div>
     </div>
 
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+        </div>
+    @endif
     <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 mb-8 print:shadow-none print:border-none print:p-0">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6 pb-6 border-b border-gray-100">
             <div>
@@ -58,11 +69,13 @@
                     @forelse($students as $userId => $sessions)
                         @php $first = true; $count = $sessions->count(); @endphp
                         @foreach($sessions as $session)
-                        <tr class="hover:bg-gray-50/50 transition-colors {{ $session->attempt_number > 1 ? 'bg-amber-50/30' : '' }}">
+                        <tr class="hover:bg-gray-50/50 transition-colors {{ $session->attempt_number > 1 ? 'bg-[#e8eaf5]/30' : '' }}">
                             <td class="py-4 px-4 text-gray-500">{{ $first ? $loop->parent->iteration : '' }}</td>
                             <td class="py-4 px-6 font-mono text-gray-600">{{ $session->user->username }}</td>
                             <td class="py-4 px-6 font-medium text-gray-900">
-                                {{ $session->user->name }}
+                                <a href="{{ route('admin.exams.student_report', [$exam, $session->user]) }}" class="hover:text-primary transition-colors">
+                                    {{ $session->user->name }}
+                                </a>
                                 @if($first && $count > 1)
                                     <span class="ml-2 text-xs text-gray-500">({{ $count }}x)</span>
                                 @endif
@@ -71,7 +84,7 @@
                                 <span class="inline-flex items-center gap-1 text-sm">
                                     Percobaan {{ $session->attempt_number }}
                                     @if($session->attempt_number > 1)
-                                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">Remedial</span>
+                                        <span class="px-2 py-0.5 bg-[#eeedf7] text-secondary text-xs rounded-full font-medium">Remedial</span>
                                     @endif
                                 </span>
                             </td>
@@ -100,10 +113,10 @@
         </div>
 
         @if($exam->max_attempts > 1)
-        <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800 flex items-start gap-3">
+        <div class="mt-6 p-4 bg-[#e8eaf5] border border-primary/20 rounded-2xl text-sm text-primary flex items-start gap-3">
             <i class="ph ph-info text-lg flex-shrink-0 mt-0.5"></i>
             <div>
-                <strong>Informasi Remedial:</strong> Ujian ini memiliki nilai minimal <strong>{{ $exam->passing_grade }}</strong> dengan maksimal <strong>{{ $exam->max_attempts }}</strong> percobaan. Baris dengan latar <span class="bg-amber-50/30 px-1 rounded">kuning</span> adalah percobaan remedial.
+                <strong>Informasi Remedial:</strong> Ujian ini memiliki nilai minimal <strong>{{ $exam->passing_grade }}</strong> dengan maksimal <strong>{{ $exam->max_attempts }}</strong> percobaan. Baris dengan latar biru adalah percobaan remedial.
             </div>
         </div>
         @endif

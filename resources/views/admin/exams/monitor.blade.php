@@ -23,16 +23,16 @@
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Total Peserta</p>
             <p class="stat-value text-3xl font-bold text-gray-900">{{ $stats['total'] }}</p>
         </div>
-        <div class="participant-stat-card bg-white p-5 rounded-2xl shadow-sm border border-green-200" data-stat="in_progress">
-            <p class="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">Sedang Ujian</p>
+        <div class="participant-stat-card bg-white p-5 rounded-2xl shadow-sm border border-primary/20" data-stat="in_progress">
+            <p class="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Sedang Ujian</p>
             <p class="stat-value text-3xl font-bold text-gray-900">{{ $stats['in_progress'] }}</p>
         </div>
         <div class="participant-stat-card bg-white p-5 rounded-2xl shadow-sm border border-gray-200" data-stat="not_started">
             <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Belum Mulai</p>
             <p class="stat-value text-3xl font-bold text-gray-900">{{ $stats['not_started'] }}</p>
         </div>
-        <div class="participant-stat-card bg-white p-5 rounded-2xl shadow-sm border border-blue-200" data-stat="finished">
-            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Selesai</p>
+        <div class="participant-stat-card bg-white p-5 rounded-2xl shadow-sm border border-secondary/20" data-stat="finished">
+            <p class="text-xs font-semibold text-secondary uppercase tracking-wide mb-1">Selesai</p>
             <p class="stat-value text-3xl font-bold text-gray-900">{{ $stats['finished'] }}</p>
         </div>
     </div>
@@ -80,11 +80,11 @@
                         <td class="py-4 px-6 font-medium text-gray-900">{{ $student->name }}</td>
                         <td class="py-4 px-6">
                             @if($student->status === 'in_progress')
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">
-                                    <span class="h-2 w-2 rounded-full bg-green-500 inline-block animate-pulse"></span> Sedang Ujian
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-[#e8eaf5] text-primary text-xs font-semibold rounded-full border border-primary/20">
+                                    <span class="h-2 w-2 rounded-full bg-primary inline-block animate-pulse"></span> Sedang Ujian
                                 </span>
                             @elseif($student->status === 'finished')
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-[#eeedf7] text-secondary text-xs font-semibold rounded-full border border-secondary/20">
                                     <i class="ph ph-check-circle text-sm"></i> Selesai
                                 </span>
                             @else

@@ -8,9 +8,11 @@
 
 @theme {
     --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-    --color-primary: #3b4d3b;
-    --color-primary-hover: #2d3b2d;
-    --color-bg-light: #f5f4ef;
+    --color-primary: #001b6e;
+    --color-primary-hover: #001458;
+    --color-secondary: #4f50a8;
+    --color-secondary-hover: #3d3e8a;
+    --color-bg-light: #f0f2f8;
 }
 
 body {

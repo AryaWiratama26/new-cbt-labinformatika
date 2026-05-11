@@ -9,7 +9,7 @@ Route::get('/', function () {
 });
 
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware(['auth'])->group(function () {
@@ -41,7 +41,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/admin/classrooms/{classroom}', [AdminController::class, 'destroyClassroom'])->name('admin.classrooms.destroy');
 
         // Courses (with nested Modules)
-        Route::resource('admin/courses', \App\Http\Controllers\CourseController::class)->names('admin.courses');
+        Route::resource('admin/courses', \App\Http\Controllers\CourseController::class)->only(['index', 'store', 'destroy'])->names('admin.courses');
 
         // Module routes nested under courses
         Route::prefix('admin/courses/{course}/modules')->name('admin.courses.modules.')->group(function () {
@@ -66,6 +66,13 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('admin/exams', \App\Http\Controllers\ExamController::class)->names('admin.exams');
         Route::get('admin/exams/{exam}/results', [\App\Http\Controllers\ExamController::class, 'results'])->name('admin.exams.results');
         Route::get('admin/exams/{exam}/monitor', [\App\Http\Controllers\ExamController::class, 'monitor'])->name('admin.exams.monitor');
+        Route::get('admin/exams/{exam}/pdf', [\App\Http\Controllers\ExamController::class, 'exportPdf'])->name('admin.exams.pdf');
+        Route::get('admin/exams/{exam}/results/csv', [\App\Http\Controllers\ExamController::class, 'resultsCsv'])->name('admin.exams.results.csv');
+        Route::get('admin/exams/{exam}/student/{user}/report', [\App\Http\Controllers\ExamController::class, 'studentReport'])->name('admin.exams.student_report');
+
+        // Classroom recap
+        Route::get('admin/classrooms/{classroom}/recap', [\App\Http\Controllers\AdminController::class, 'classroomRecap'])->name('admin.classrooms.recap');
+        Route::get('admin/classrooms/{classroom}/recap/csv', [\App\Http\Controllers\AdminController::class, 'classroomRecapCsv'])->name('admin.classrooms.recap.csv');
     });
 
     // Student Routes
@@ -75,5 +82,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/student/exams/{exam}/start', [\App\Http\Controllers\StudentController::class, 'start'])->name('student.exams.start');
         Route::get('/student/exams/{exam}/attempt', [\App\Http\Controllers\StudentController::class, 'attempt'])->name('student.exams.attempt');
         Route::post('/student/exams/{exam}/submit', [\App\Http\Controllers\StudentController::class, 'submit'])->name('student.exams.submit');
+        Route::post('/student/exams/{exam}/save-answer', [\App\Http\Controllers\StudentController::class, 'saveAnswer'])->name('student.exams.save_answer');
     });
 });

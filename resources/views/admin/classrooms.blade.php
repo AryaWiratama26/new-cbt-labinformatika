@@ -43,17 +43,20 @@
 
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         @forelse($classrooms as $classroom)
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 hover:border-orange-200 hover:shadow-md transition-all group">
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 hover:border-primary/20 hover:shadow-md transition-all group">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="h-12 w-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all">
+                    <div class="h-12 w-12 bg-[#e8eaf5] text-primary rounded-xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
                         <i class="ph ph-chalkboard-teacher text-2xl"></i>
                     </div>
                     <div class="flex gap-1">
-                        <button onclick="editClassroom({{ $classroom->id }}, '{{ $classroom->name }}', '{{ $classroom->academic_year ?? '' }}', '{{ $classroom->semester ?? '' }}')" class="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                        <a href="{{ route('admin.classrooms.recap', $classroom) }}" class="text-primary hover:text-primary-hover p-1.5 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Rekap Nilai">
+                            <i class="ph ph-chart-bar text-lg"></i>
+                        </a>
+                        <button data-id="{{ $classroom->id }}" data-name="{{ $classroom->name }}" data-academic-year="{{ $classroom->academic_year ?? '' }}" data-semester="{{ $classroom->semester ?? '' }}" onclick="editClassroom(this)" class="text-secondary hover:text-secondary-hover p-1.5 rounded-lg hover:bg-[#eeedf7] transition-colors">
                             <i class="ph ph-pencil-simple text-lg"></i>
                         </button>
                         @if($classroom->users_count === 0)
-                            <form action="{{ route('admin.classrooms.destroy', $classroom) }}" method="POST" onsubmit="return confirm('Hapus kelas {{ $classroom->name }}?')">
+                            <form action="{{ route('admin.classrooms.destroy', $classroom) }}" method="POST" onsubmit="return confirm('Hapus kelas ' + this.querySelector('[data-name-confirm]')?.dataset?.nameConfirm + '?')"><input type="hidden" data-name-confirm data-name-confirm="{{ $classroom->name }}">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
                                     <i class="ph ph-trash text-lg"></i>
@@ -142,11 +145,12 @@
 </div>
 
 <script>
-function editClassroom(id, name, academicYear, semester) {
-    document.getElementById('edit-form').action = `/admin/classrooms/${id}`;
-    document.getElementById('edit-name').value = name;
-    document.getElementById('edit-academic-year').value = academicYear;
-    document.getElementById('edit-semester').value = semester;
+function editClassroom(btn) {
+    var d = btn.dataset;
+    document.getElementById('edit-form').action = '/admin/classrooms/' + d.id;
+    document.getElementById('edit-name').value = d.name;
+    document.getElementById('edit-academic-year').value = d.academicYear || '';
+    document.getElementById('edit-semester').value = d.semester || '';
     document.getElementById('edit-modal').classList.remove('hidden');
 }
 </script>

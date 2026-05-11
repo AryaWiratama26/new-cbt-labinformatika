@@ -20,6 +20,11 @@
             {{ session('success') }}
         </div>
     @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+        </div>
+    @endif
 
     <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
@@ -42,7 +47,7 @@
                         </td>
                         <td class="py-4 px-6">
                             <p class="font-medium text-gray-800">{{ $exam->course->name ?? '-' }}</p>
-                            <span class="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-md border border-blue-100">Kelas: {{ $exam->classroom->name ?? '-' }}</span>
+                            <span class="inline-block mt-1 px-2 py-0.5 bg-[#e8eaf5] text-primary text-xs rounded-md border border-primary/10">Kelas: {{ $exam->classroom->name ?? '-' }}</span>
                         </td>
                         <td class="py-4 px-6 text-sm text-gray-600">
                             <p><span class="font-medium">Mulai:</span> {{ $exam->start_time->format('d M Y, H:i') }}</p>
@@ -57,16 +62,16 @@
                         </td>
                         <td class="py-4 px-6 text-right">
                             <div class="flex items-center justify-end gap-2">
-                                <a href="{{ route('admin.exams.monitor', $exam) }}" class="text-cyan-600 hover:text-cyan-800 p-2 rounded-lg hover:bg-cyan-50 transition-colors" title="Monitor">
+                                <a href="{{ route('admin.exams.monitor', $exam) }}" class="text-primary hover:text-primary-hover p-2 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Monitor">
                                     <i class="ph ph-eye text-lg"></i>
                                 </a>
-                                <a href="{{ route('admin.exams.results', $exam) }}" class="text-indigo-600 hover:text-indigo-800 p-2 rounded-lg hover:bg-indigo-50 transition-colors" title="Lihat Nilai">
+                                <a href="{{ route('admin.exams.results', $exam) }}" class="text-secondary hover:text-secondary-hover p-2 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Lihat Nilai">
                                     <i class="ph ph-chart-bar text-lg"></i>
                                 </a>
-                                <a href="{{ route('admin.exams.show', $exam) }}" class="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors" title="Kelola Soal">
+                                <a href="{{ route('admin.exams.show', $exam) }}" class="text-primary hover:text-primary-hover p-2 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Kelola Soal">
                                     <i class="ph ph-list-numbers text-lg"></i>
                                 </a>
-                                <a href="{{ route('admin.exams.edit', $exam) }}" class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                                <a href="{{ route('admin.exams.edit', $exam) }}" class="text-secondary hover:text-secondary-hover p-2 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Edit">
                                     <i class="ph ph-pencil-simple text-lg"></i>
                                 </a>
                                 <form action="{{ route('admin.exams.destroy', $exam) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus ujian ini?');">

@@ -7,6 +7,8 @@ use App\Models\ExamSession;
 use App\Models\Course;
 use App\Models\Classroom;
 use App\Models\User;
+use App\Models\Answer;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class ExamController extends Controller
@@ -187,5 +189,110 @@ class ExamController extends Controller
         }
 
         return view('admin.exams.monitor', compact('exam', 'participants', 'stats'));
+    }
+
+    public function exportPdf(Exam $exam)
+    {
+        $exam->load('course', 'classroom');
+
+        $allSessions = ExamSession::where('exam_id', $exam->id)
+            ->with('user')
+            ->orderBy('user_id')
+            ->orderBy('attempt_number')
+            ->get();
+
+        $students = $allSessions->groupBy('user_id');
+
+        $finishedStudents = $students->filter(fn($sessions) => $sessions->where('finished_at', '!=', null)->isNotEmpty());
+        $totalStudents = $finishedStudents->count();
+        $lastScores = $finishedStudents->map(fn($sessions) => $sessions->where('finished_at', '!=', null)->last()->score ?? 0);
+        $avgScore = $lastScores->count() > 0 ? round($lastScores->avg(), 1) : 0;
+        $passed = $lastScores->filter(fn($s) => $s >= $exam->passing_grade)->count();
+        $failed = $totalStudents - $passed;
+        $highest = $lastScores->max() ?? 0;
+        $lowest = $lastScores->min() ?? 0;
+
+        $pdf = Pdf::loadView('admin.exports.exam-pdf', compact(
+            'exam', 'students', 'avgScore', 'passed', 'failed', 'totalStudents', 'highest', 'lowest'
+        ));
+
+        $filename = 'Laporan_Nilai_' . str_replace('/', '-', $exam->title) . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    public function resultsCsv(Exam $exam)
+    {
+        $exam->load('course', 'classroom');
+
+        $allSessions = ExamSession::where('exam_id', $exam->id)
+            ->with('user')
+            ->orderBy('user_id')
+            ->orderBy('attempt_number')
+            ->get();
+
+        $headers = [
+            "Content-type"        => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename=laporan_nilai_{$exam->id}.csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0",
+        ];
+
+        $callback = function () use ($exam, $allSessions) {
+            $file = fopen('php://output', 'w');
+
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            fputcsv($file, ['No', 'NIM', 'Nama Mahasiswa', 'Percobaan', 'Waktu Submit', 'Skor', 'Status']);
+
+            $students = $allSessions->groupBy('user_id');
+            $no = 1;
+
+            foreach ($students as $userId => $sessions) {
+                foreach ($sessions as $session) {
+                    $status = $session->score !== null
+                        ? ($session->score >= $exam->passing_grade ? 'LULUS' : 'GAGAL')
+                        : '-';
+                    $waktu = $session->finished_at
+                        ? $session->finished_at->format('Y-m-d H:i:s')
+                        : 'Belum Selesai';
+
+                    fputcsv($file, [
+                        $no,
+                        $session->user->username,
+                        $session->user->name,
+                        $session->attempt_number,
+                        $waktu,
+                        $session->score ?? '-',
+                        $status,
+                    ]);
+                }
+                $no++;
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function studentReport(Exam $exam, User $user)
+    {
+        $exam->load('course', 'classroom');
+
+        $questions = $exam->getQuestions();
+
+        $sessions = ExamSession::where('exam_id', $exam->id)
+            ->where('user_id', $user->id)
+            ->orderBy('attempt_number')
+            ->with('answers.question.options', 'answers.option')
+            ->get();
+
+        if ($sessions->isEmpty()) {
+            return redirect()->route('admin.exams.results', $exam)
+                ->with('error', 'Mahasiswa belum mengerjakan ujian ini.');
+        }
+
+        return view('admin.exams.student-report', compact('exam', 'user', 'sessions', 'questions'));
     }
 }

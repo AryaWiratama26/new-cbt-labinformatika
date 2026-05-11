@@ -11,12 +11,25 @@
                 <p class="text-gray-500">Pratinjau soal dari modul yang terhubung.</p>
             </div>
         </div>
+    @if(session('success'))
+        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
+            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+        </div>
+    @endif
         <div class="flex gap-3">
-            <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-cyan-200 hover:bg-cyan-50 text-cyan-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+            <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-eye text-lg"></i> Monitor
             </a>
             <a href="{{ route('admin.exams.results', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-chart-bar text-lg"></i> Lihat Hasil
+            </a>
+            <a href="{{ route('admin.exams.pdf', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-file-pdf text-lg"></i> PDF
             </a>
             <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-pencil-simple text-lg"></i> Edit Jadwal
@@ -66,22 +79,22 @@
 
             <!-- Modul Info -->
             @if($exam->module)
-            <div class="bg-purple-50 border border-purple-200 p-6 rounded-[2rem]">
-                <h3 class="text-base font-bold text-purple-900 mb-2 flex items-center gap-2"><i class="ph ph-stack"></i> Modul Terhubung</h3>
+            <div class="bg-[#e8eaf5] border border-primary/10 p-6 rounded-[2rem]">
+                <h3 class="text-base font-bold text-primary mb-2 flex items-center gap-2"><i class="ph ph-stack"></i> Modul Terhubung</h3>
                 @if($exam->module->module_number)
-                    <p class="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-0.5">{{ $exam->module->module_number }}</p>
+                    <p class="text-xs font-semibold text-secondary uppercase tracking-wide mb-0.5">{{ $exam->module->module_number }}</p>
                 @endif
-                <p class="font-semibold text-purple-800 mb-3">{{ $exam->module->name }}</p>
-                <p class="text-sm text-purple-700 mb-4">Total <strong>{{ $questions->count() }}</strong> soal dari modul ini.</p>
-                <a href="{{ route('admin.courses.modules.show', [$exam->module->course_id, $exam->module]) }}" class="inline-flex items-center gap-2 text-sm font-medium text-purple-700 hover:text-purple-900 bg-white border border-purple-200 px-3 py-2 rounded-xl transition-colors">
+                <p class="font-semibold text-gray-900 mb-3">{{ $exam->module->name }}</p>
+                <p class="text-sm text-gray-600 mb-4">Total <strong>{{ $questions->count() }}</strong> soal dari modul ini.</p>
+                <a href="{{ route('admin.courses.modules.show', [$exam->module->course_id, $exam->module]) }}" class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-hover bg-white border border-primary/20 px-3 py-2 rounded-xl transition-colors">
                     <i class="ph ph-arrow-square-out"></i> Kelola Soal di Modul
                 </a>
             </div>
             @else
-            <div class="bg-amber-50 border border-amber-200 p-6 rounded-[2rem]">
-                <h3 class="text-base font-bold text-amber-800 mb-2 flex items-center gap-2"><i class="ph ph-warning"></i> Belum Ada Modul</h3>
-                <p class="text-sm text-amber-700 mb-3">Ujian ini belum terhubung ke modul. Edit jadwal dan pilih modul agar soal tersedia.</p>
-                <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-2 text-sm font-medium text-amber-800 bg-white border border-amber-300 px-3 py-2 rounded-xl hover:bg-amber-50 transition-colors">
+            <div class="bg-gray-50 border border-gray-200 p-6 rounded-[2rem]">
+                <h3 class="text-base font-bold text-gray-700 mb-2 flex items-center gap-2"><i class="ph ph-warning"></i> Belum Ada Modul</h3>
+                <p class="text-sm text-gray-500 mb-3">Ujian ini belum terhubung ke modul. Edit jadwal dan pilih modul agar soal tersedia.</p>
+                <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-2 text-sm font-medium text-primary bg-white border border-gray-300 px-3 py-2 rounded-xl hover:bg-[#e8eaf5] transition-colors">
                     <i class="ph ph-pencil-simple"></i> Pilih Modul
                 </a>
             </div>
