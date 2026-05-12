@@ -1,5 +1,11 @@
 import { test as base } from '@playwright/test';
 import { LoginPage } from '../pages/login.page';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const authDir = path.resolve(__dirname, '../.auth');
 
 type AuthFixtures = {
   adminPage: LoginPage;
@@ -7,20 +13,20 @@ type AuthFixtures = {
 };
 
 export const test = base.extend<AuthFixtures>({
-  adminPage: async ({ page }, use) => {
+  adminPage: async ({ browser }, use) => {
+    const context = await browser.newContext({ storageState: path.join(authDir, 'admin.json') });
+    const page = await context.newPage();
     const login = new LoginPage(page);
-    await login.goto();
-    await login.login('admin', 'admin');
-    await page.waitForURL(/\/admin\/dashboard/);
     await use(login);
+    await context.close();
   },
 
-  studentPage: async ({ page }, use) => {
+  studentPage: async ({ browser }, use) => {
+    const context = await browser.newContext({ storageState: path.join(authDir, 'student.json') });
+    const page = await context.newPage();
     const login = new LoginPage(page);
-    await login.goto();
-    await login.login('20241001', 'test123');
-    await page.waitForURL(/\/student\/dashboard/);
     await use(login);
+    await context.close();
   },
 });
 

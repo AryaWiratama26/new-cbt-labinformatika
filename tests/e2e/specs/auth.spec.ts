@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/auth.fixture';
 import { LoginPage } from '../pages/login.page';
 
 test.describe('Authentication', () => {
@@ -33,21 +33,15 @@ test.describe('Authentication', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('1.6 Logout redirects to login', async ({ page }) => {
-    const login = new LoginPage(page);
-    await login.goto();
-    await login.login('admin', 'admin');
-    await page.waitForURL(/\/admin\/dashboard/);
-    await page.locator('form[action*="logout"] button').click();
-    await expect(page).toHaveURL(/\/login/);
+  test('1.6 Logout redirects to login', async ({ adminPage }) => {
+    await adminPage.page.goto('/admin/dashboard');
+    await adminPage.page.locator('form[action*="logout"] button').click();
+    await expect(adminPage.page).toHaveURL(/\/login/);
   });
 
-  test('1.7 Authenticated user redirected from /login', async ({ page }) => {
-    const login = new LoginPage(page);
-    await login.goto();
-    await login.login('admin', 'admin');
-    await page.waitForURL(/\/admin\/dashboard/);
-    await page.goto('/login');
-    await expect(page).toHaveURL(/\/admin\/dashboard/);
+  test('1.7 Authenticated user redirected from /login', async ({ adminPage }) => {
+    await adminPage.page.goto('/admin/dashboard');
+    await adminPage.page.goto('/login');
+    await expect(adminPage.page).toHaveURL(/\/admin\/dashboard/);
   });
 });

@@ -19,11 +19,11 @@ test.describe('Course Management', () => {
 
   test('5.4 Delete course', async ({ adminPage }) => {
     await adminPage.page.goto('/admin/courses');
-    // Click last delete button (oldest course is safer to delete)
-    const deleteBtns = adminPage.page.locator('table tbody tr button:has-text("")');
+    const deleteBtns = adminPage.page.locator('button[title="Hapus"]');
     const count = await deleteBtns.count();
     if (count > 0) {
-      await deleteBtns.last().click();
+      adminPage.page.once('dialog', dialog => dialog.accept());
+      await deleteBtns.first().click();
       await expect(adminPage.page.locator('text=berhasil dihapus')).toBeVisible({ timeout: 5000 });
     }
   });

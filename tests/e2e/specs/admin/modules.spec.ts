@@ -9,7 +9,7 @@ test.describe('Modules & Questions', () => {
 
   test('6.4 Question bank renders for module', async ({ adminPage }) => {
     await adminPage.page.goto('/admin/courses');
-    const moduleLink = adminPage.page.locator('a:has-text("Modul")').first();
+    const moduleLink = adminPage.page.locator('tr:has(td:text("PW")) a:has-text("Modul")');
     await moduleLink.click();
     await adminPage.page.waitForURL(/\/modules/);
     const kelolaLink = adminPage.page.locator('a:has-text("Kelola Soal")').first();

@@ -5,14 +5,13 @@ test.describe('Exam Management', () => {
   test('7.1 Exams list renders', async ({ adminPage }) => {
     const page = new AdminExamsPage(adminPage.page);
     await page.goto();
-    await expect(adminPage.page.getByRole('heading', { name: /ujian/i })).toBeVisible();
+    await expect(adminPage.page.getByRole('heading', { name: /manajemen ujian/i })).toBeVisible();
   });
 
   test('8.4 PDF export button exists on results', async ({ adminPage }) => {
     await adminPage.page.goto('/admin/exams');
     const examLinks = adminPage.page.locator('a[href*="/admin/exams/"]');
     const count = await examLinks.count();
-    // Only test if there's at least one exam
     test.skip(count < 3, 'No exams to test');
     const href = await examLinks.nth(2).getAttribute('href');
     await adminPage.page.goto(href!);
