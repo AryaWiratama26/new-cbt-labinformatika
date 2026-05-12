@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::table('exam_sessions', function (Blueprint $table) {
             $table->dropForeign(['user_id']);
             $table->dropForeign(['exam_id']);
-            $table->dropUnique(['user_id', 'exam_id']);
             $table->integer('attempt_number')->default(1);
             $table->unique(['user_id', 'exam_id', 'attempt_number']);
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
@@ -29,7 +28,6 @@ return new class extends Migration
             $table->dropForeign(['exam_id']);
             $table->dropUnique(['user_id', 'exam_id', 'attempt_number']);
             $table->dropColumn('attempt_number');
-            $table->unique(['user_id', 'exam_id']);
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreign('exam_id')->references('id')->on('exams')->cascadeOnDelete();
         });
