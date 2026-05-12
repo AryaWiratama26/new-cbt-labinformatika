@@ -219,6 +219,14 @@ class StudentController extends Controller
         }
 
         if ($request->option_id) {
+            $optionExists = \App\Models\Option::where('id', $request->option_id)
+                ->where('question_id', $request->question_id)
+                ->exists();
+                
+            if (!$optionExists) {
+                return response()->json(['success' => false, 'message' => 'Opsi tidak valid untuk soal ini.'], 400);
+            }
+
             Answer::updateOrCreate(
                 ['exam_session_id' => $session->id, 'question_id' => $request->question_id],
                 ['option_id' => $request->option_id]
