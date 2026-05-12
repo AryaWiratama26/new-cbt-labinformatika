@@ -61,8 +61,7 @@
             </div>
         </div>
 
-        @if($exam->max_attempts > 1)
-        <div class="grid grid-cols-2 gap-4 text-left mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-left mb-8">
             <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
                 <span class="block text-xs text-gray-500 mb-1">Nilai Minimal</span>
                 <span class="font-bold text-lg text-gray-900">{{ $exam->passing_grade }}</span>
@@ -71,8 +70,19 @@
                 <span class="block text-xs text-gray-500 mb-1">Maksimal Percobaan</span>
                 <span class="font-bold text-lg text-gray-900">{{ $exam->max_attempts }}x</span>
             </div>
+            @if($exam->max_tab_switches)
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <span class="block text-xs text-gray-500 mb-1">Deteksi Tab</span>
+                <span class="font-bold text-lg text-gray-900">Aktif ({{ $exam->max_tab_switches }}x)</span>
+            </div>
+            @endif
+            @if($exam->require_fullscreen)
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <span class="block text-xs text-gray-500 mb-1">Layar Penuh</span>
+                <span class="font-bold text-lg text-gray-900">Wajib</span>
+            </div>
+            @endif
         </div>
-        @endif
 
         @if($exam->description)
             <div class="text-left bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-8">
@@ -84,9 +94,29 @@
         @endif
 
         @if($hasUnfinished || $canRemedial || $lastSession === null)
+
+        @if($exam->require_fullscreen)
+        <div id="fullscreen-gate" class="mb-6 p-5 rounded-2xl bg-blue-50 border border-blue-200">
+            <div class="flex items-start gap-3">
+                <div class="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0">
+                    <i class="ph ph-arrows-out text-xl"></i>
+                </div>
+                <div class="text-left">
+                    <strong class="text-blue-900">Wajib Layar Penuh</strong>
+                    <p class="text-sm text-blue-700 mt-0.5">Ujian ini mengharuskan Anda berada dalam mode layar penuh. Klik tombol di bawah, lalu mulai ujian.</p>
+                </div>
+            </div>
+            <button type="button" id="fs-enter-btn" onclick="enterFullscreen()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
+                <i class="ph-fill ph-arrows-out text-lg"></i> Masuk Layar Penuh
+            </button>
+            <div id="fs-active-indicator" class="hidden mt-3 p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm font-medium flex items-center gap-2">
+                <i class="ph-fill ph-check-circle text-lg"></i> Mode layar penuh aktif. Silakan mulai ujian.
+            </div>
+        </div>
+        @endif
         <form action="{{ route('student.exams.start', $exam) }}" method="POST">
             @csrf
-            <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2">
+            <button type="submit" id="start-exam-btn" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" {{ $exam->require_fullscreen ? 'disabled' : '' }}>
                 <i class="ph-fill ph-play-circle"></i> 
                 @if($hasUnfinished)
                     Lanjutkan Pengerjaan
@@ -111,4 +141,49 @@
         @endif
     </div>
 </div>
+
+@if($exam->require_fullscreen)
+<script>
+function fsActive() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+}
+
+function enterFullscreen() {
+    var el = document.documentElement;
+    if (el.requestFullscreen) {
+        el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+    } else if (el.msRequestFullscreen) {
+        el.msRequestFullscreen();
+    }
+}
+
+        function handleFullscreenChange() {
+    var isFs = fsActive();
+    var gate = document.getElementById('fullscreen-gate');
+    var btn = document.getElementById('start-exam-btn');
+    var indicator = document.getElementById('fs-active-indicator');
+    var enterBtn = document.getElementById('fs-enter-btn');
+    if (!gate) return;
+    if (isFs) {
+        if (btn) btn.disabled = false;
+        gate.classList.add('hidden');
+        if (indicator) indicator.classList.remove('hidden');
+        if (enterBtn) enterBtn.classList.add('hidden');
+    } else {
+        if (btn) btn.disabled = true;
+        gate.classList.remove('hidden');
+        if (indicator) indicator.classList.add('hidden');
+        if (enterBtn) enterBtn.classList.remove('hidden');
+    }
+}
+
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+if (fsActive()) handleFullscreenChange();
+</script>
+@endif
 @endsection

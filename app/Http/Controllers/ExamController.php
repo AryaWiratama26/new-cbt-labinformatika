@@ -39,12 +39,14 @@ class ExamController extends Controller
             'is_active'        => 'boolean',
             'passing_grade'    => 'required|integer|min:0|max:100',
             'max_attempts'     => 'required|integer|min:1|max:10',
+            'max_tab_switches' => 'nullable|integer|min:1|max:99',
+            'require_fullscreen' => 'boolean',
         ]);
 
         // Auto-fill course_id from the selected module
         $module = \App\Models\Module::findOrFail($validated['module_id']);
         $validated['course_id'] = $module->course_id;
-        $validated['is_active'] = $request->has('is_active');
+        $validated['is_active'] = $request->boolean('is_active');
 
         Exam::create($validated);
         return redirect()->route('admin.exams.index')->with('success', 'Jadwal ujian berhasil dibuat.');
@@ -70,11 +72,13 @@ class ExamController extends Controller
             'is_active'        => 'boolean',
             'passing_grade'    => 'required|integer|min:0|max:100',
             'max_attempts'     => 'required|integer|min:1|max:10',
+            'max_tab_switches' => 'nullable|integer|min:1|max:99',
+            'require_fullscreen' => 'boolean',
         ]);
 
         $module = \App\Models\Module::findOrFail($validated['module_id']);
         $validated['course_id'] = $module->course_id;
-        $validated['is_active'] = $request->has('is_active');
+        $validated['is_active'] = $request->boolean('is_active');
 
         $exam->update($validated);
         return redirect()->route('admin.exams.index')->with('success', 'Jadwal ujian berhasil diperbarui.');

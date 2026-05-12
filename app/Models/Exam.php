@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Exam extends Model
 {
-    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'classroom_id', 'start_time', 'end_time', 'duration_minutes', 'is_active', 'passing_grade', 'max_attempts'];
+    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'classroom_id', 'start_time', 'end_time', 'duration_minutes', 'is_active', 'passing_grade', 'max_attempts', 'max_tab_switches', 'require_fullscreen'];
 
     protected $casts = [
         'start_time' => 'datetime',

@@ -13,7 +13,7 @@
 <body class="text-gray-800 antialiased h-screen flex flex-col overflow-hidden">
 
     <!-- Top Navigation for Exam -->
-    <header class="bg-white border-b border-gray-200 py-4 px-6 flex-shrink-0 z-10">
+    <header class="bg-white border-b border-gray-200 py-4 px-6 flex-shrink-0 z-50">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-4">
                 <div class="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-bold">
@@ -33,8 +33,24 @@
         </div>
     </header>
 
+    @if($exam->require_fullscreen)
+    <div id="attempt-fs-overlay" class="fixed inset-0 z-40 bg-white/95 flex items-center justify-center p-6 hidden">
+        <div class="max-w-md w-full bg-white rounded-[2rem] shadow-xl border border-gray-100 p-8 text-center">
+            <div class="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-secondary/10 text-secondary mb-6">
+                <i class="ph-fill ph-arrows-out text-4xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Wajib Layar Penuh</h3>
+            <p class="text-gray-500 mb-8">Anda harus berada dalam mode layar penuh untuk mengikuti ujian ini.</p>
+            <button type="button" id="attempt-fs-btn" onclick="enterFs()" class="w-full bg-secondary hover:bg-secondary/90 text-white py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                <i class="ph-fill ph-arrows-out text-lg"></i> Masuk Layar Penuh
+            </button>
+            <p class="text-xs text-gray-400 mt-4">Setelah masuk layar penuh, soal akan ditampilkan.</p>
+        </div>
+    </div>
+    @endif
+
     <!-- Main Content -->
-    <main class="flex-grow flex overflow-hidden max-w-7xl mx-auto w-full">
+    <main class="flex-grow flex overflow-hidden max-w-7xl mx-auto w-full" id="attempt-main">
         
         <!-- Questions Area -->
         <div class="flex-grow overflow-y-auto p-6 md:p-8 scroll-smooth" id="questions-container">
@@ -258,6 +274,91 @@
         document.getElementById('submit-modal')?.addEventListener('click', function (e) {
             if (e.target === this) closeModal();
         });
+
+        // ── Tab Switch Detection (core) ──
+        const tabSwitchUrl = "{{ route('student.exams.tab_switch', $exam) }}";
+        let lastTabReport = 0;
+
+        function reportTabSwitch() {
+            var now = Date.now();
+            if (now - lastTabReport < 2000) return;
+            lastTabReport = now;
+
+            fetch(tabSwitchUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: JSON.stringify({ _token: csrfToken })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                if (typeof tabSwitchCount !== 'undefined') {
+                    tabSwitchCount = data.tab_switches;
+                }
+                if (typeof maxTabSwitches !== 'undefined' && data.exceeded) {
+                    alert('Anda telah meninggalkan halaman ujian terlalu banyak kali.\nUjian akan otomatis dikumpulkan.');
+                    form.submit();
+                } else if (typeof maxTabSwitches !== 'undefined' && tabSwitchCount >= Math.ceil(maxTabSwitches * 0.5) && !tabWarningShown) {
+                    tabWarningShown = true;
+                    var remaining = maxTabSwitches - tabSwitchCount;
+                    var warn = document.createElement('div');
+                    warn.id = 'tab-warning';
+                    warn.className = 'fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-3 px-4 text-sm font-medium shadow-lg';
+                    warn.innerHTML = '<i class=\"ph ph-warning-circle text-lg inline-block mr-1.5 align-middle\"></i> Peringatan: Anda telah meninggalkan halaman ujian ' + tabSwitchCount + ' kali. Sisa ' + remaining + ' kali sebelum ujian otomatis dikumpulkan.';
+                    document.body.prepend(warn);
+                    setTimeout(function() {
+                        var el = document.getElementById('tab-warning');
+                        if (el) el.remove();
+                    }, 8000);
+                }
+            })
+            .catch(function(){});
+        }
+
+        @if($exam->max_tab_switches)
+        // ── Tab Switch Trigger ──
+        const maxTabSwitches = {{ $exam->max_tab_switches }};
+        let tabSwitchCount = {{ $session->tab_switches ?? 0 }};
+        let tabWarningShown = false;
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') reportTabSwitch();
+        });
+        @endif
+
+        @if($exam->require_fullscreen)
+        // ── Fullscreen Gate + Exit Detection ──
+        var fsExited = false;
+        var fsGate = document.getElementById('attempt-fs-overlay');
+
+        function enterFs() {
+            var el = document.documentElement;
+            if (el.requestFullscreen) { el.requestFullscreen(); }
+            else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
+            else if (el.msRequestFullscreen) { el.msRequestFullscreen(); }
+        }
+
+        function handleFsChange() {
+            var inFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            if (inFs) {
+                if (fsGate) fsGate.classList.add('hidden');
+                fsExited = false;
+            } else {
+                if (!fsExited) {
+                    fsExited = true;
+                    reportTabSwitch();
+                }
+                if (fsGate) fsGate.classList.remove('hidden');
+            }
+        }
+        document.addEventListener('fullscreenchange', handleFsChange);
+        document.addEventListener('webkitfullscreenchange', handleFsChange);
+        document.addEventListener('msfullscreenchange', handleFsChange);
+
+        if (fsGate && !document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+            fsGate.classList.remove('hidden');
+        }
+        @endif
     </script>
 </body>
 </html>

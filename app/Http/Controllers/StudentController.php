@@ -163,6 +163,10 @@ class StudentController extends Controller
             return $this->autoSubmit($session, $exam);
         }
 
+        if ($exam->max_tab_switches && $session->tab_switches > $exam->max_tab_switches) {
+            return $this->autoSubmit($session, $exam, 'tab_switch');
+        }
+
         $questions = $exam->getQuestions();
 
         $questions = $questions->shuffle();
@@ -219,6 +223,42 @@ class StudentController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function reportTabSwitch(Request $request, Exam $exam)
+    {
+        $user = auth()->user();
+
+        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+            return response()->json(['success' => false], 403);
+        }
+
+        $session = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->whereNull('finished_at')
+            ->orderByDesc('attempt_number')
+            ->first();
+
+        if (!$session) {
+            return response()->json(['success' => false], 400);
+        }
+
+        if (!$exam->max_tab_switches && !$exam->require_fullscreen) {
+            return response()->json(['success' => false, 'message' => 'Tab switch detection disabled'], 400);
+        }
+
+        $session->increment('tab_switches');
+
+        $limit = $exam->max_tab_switches;
+        $current = $session->tab_switches;
+        $exceeded = $limit && $current > $limit;
+
+        return response()->json([
+            'success' => true,
+            'tab_switches' => $current,
+            'max_tab_switches' => $limit,
+            'exceeded' => $exceeded,
+        ]);
+    }
+
     public function submit(Request $request, Exam $exam)
     {
         $user = auth()->user();
@@ -267,7 +307,7 @@ class StudentController extends Controller
         return redirect()->route('student.dashboard')->with('success', 'Ujian berhasil diselesaikan.');
     }
 
-    private function autoSubmit(ExamSession $session, Exam $exam)
+    private function autoSubmit(ExamSession $session, Exam $exam, string $reason = 'time')
     {
         $correctCount = 0;
 
@@ -287,6 +327,10 @@ class StudentController extends Controller
             'score'       => $score,
         ]);
 
-        return redirect()->route('student.dashboard')->with('success', 'Waktu habis, ujian otomatis diselesaikan.');
+        $message = $reason === 'tab_switch'
+            ? 'Terlalu banyak pindah tab, ujian otomatis diselesaikan.'
+            : 'Waktu habis, ujian otomatis diselesaikan.';
+
+        return redirect()->route('student.dashboard')->with('success', $message);
     }
 }

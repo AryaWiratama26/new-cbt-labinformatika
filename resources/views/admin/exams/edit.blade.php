@@ -104,6 +104,11 @@
                         <input type="number" name="max_attempts" value="{{ old('max_attempts', $exam->max_attempts ?? 1) }}" min="1" max="10" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
                         <p class="text-xs text-gray-500 mt-1">1 = tanpa remedial. 2+ = ada kesempatan remedial.</p>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Deteksi Tab Berlebihan</label>
+                        <input type="number" name="max_tab_switches" value="{{ old('max_tab_switches', $exam->max_tab_switches) }}" min="1" max="99" placeholder="Nonaktif" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
+                        <p class="text-xs text-gray-500 mt-1">Kosongkan untuk nonaktif. Jika diisi, ujian auto-submit saat siswa melebihi batas.</p>
+                    </div>
                 </div>
             </div>
 
@@ -112,12 +117,18 @@
                 <textarea name="description" rows="3" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">{{ old('description', $exam->description) }}</textarea>
             </div>
 
-            <div class="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <input type="hidden" name="is_active" value="0">
+            <div class="flex flex-wrap gap-6 pt-4 border-t border-gray-100">
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" name="is_active" value="1" class="sr-only peer" {{ old('is_active', $exam->is_active) ? 'checked' : '' }}>
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="sr-only peer" {{ $exam->is_active ? 'checked' : '' }}>
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    <span class="ml-3 text-sm font-medium text-gray-700">Aktifkan Ujian Langsung</span>
+                    <span class="ml-3 text-sm font-medium text-gray-700">Aktifkan Ujian</span>
+                </label>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="hidden" name="require_fullscreen" value="0">
+                    <input type="checkbox" name="require_fullscreen" value="1" class="sr-only peer" {{ $exam->require_fullscreen ? 'checked' : '' }}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                    <span class="ml-3 text-sm font-medium text-gray-700">Wajib Layar Penuh</span>
                 </label>
             </div>
 
