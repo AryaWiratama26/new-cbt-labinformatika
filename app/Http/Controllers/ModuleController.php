@@ -86,8 +86,16 @@ class ModuleController extends Controller
                     mkdir($extractPath, 0755, true);
                     $realExtractPath = realpath($extractPath);
                 }
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
                 for ($i = 0; $i < $zip->numFiles; $i++) {
                     $filename = $zip->getNameIndex($i);
+                    
+                    // Prevent RCE: validate extension
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    if (!in_array($ext, $allowedExtensions)) {
+                        continue;
+                    }
+
                     $destination = $realExtractPath . '/' . $filename;
                     $realDestination = realpath(dirname($destination));
                     if ($realDestination === false || !str_starts_with($realDestination . '/', $realExtractPath . '/')) {
@@ -448,7 +456,10 @@ class ModuleController extends Controller
                         $sourcePath = 'word/' . $relPath;
                         $imageData = $zip->getFromName($sourcePath);
                         if ($imageData !== false) {
-                            $ext = pathinfo($relPath, PATHINFO_EXTENSION) ?: 'png';
+                            $ext = strtolower(pathinfo($relPath, PATHINFO_EXTENSION));
+                            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                                $ext = 'png';
+                            }
                             $filename = uniqid('docx_') . '.' . $ext;
                             file_put_contents($extractPath . '/' . $filename, $imageData);
                             $currentRel = 'questions/' . $filename;

@@ -130,11 +130,12 @@ class StudentController extends Controller
             }
         }
 
-        $session = ExamSession::create([
+        $session = ExamSession::firstOrCreate([
             'user_id'        => $user->id,
             'exam_id'        => $exam->id,
-            'started_at'     => now(),
             'attempt_number' => $nextAttempt,
+        ], [
+            'started_at'     => now(),
         ]);
 
         return redirect()->route('student.exams.attempt', $exam);
@@ -197,6 +198,14 @@ class StudentController extends Controller
 
         if (!$session) {
             return response()->json(['success' => false, 'message' => 'Tidak ada sesi ujian aktif.'], 400);
+        }
+
+        $endTimeBasedOnDuration = $session->started_at->addMinutes($exam->duration_minutes);
+        $absoluteEndTime = $exam->end_time;
+        $endTime = $endTimeBasedOnDuration < $absoluteEndTime ? $endTimeBasedOnDuration : $absoluteEndTime;
+
+        if (now() >= $endTime) {
+            return response()->json(['success' => false, 'message' => 'Waktu ujian telah habis.'], 403);
         }
 
         $request->validate([
@@ -273,6 +282,15 @@ class StudentController extends Controller
 
     private function processSubmission(Request $request, ExamSession $session, Exam $exam)
     {
+        $endTimeBasedOnDuration = $session->started_at->addMinutes($exam->duration_minutes);
+        $absoluteEndTime = $exam->end_time;
+        $endTime = $endTimeBasedOnDuration < $absoluteEndTime ? $endTimeBasedOnDuration : $absoluteEndTime;
+
+        // Allow 30 seconds grace period for network delays, otherwise calculate from DB
+        if (now() > $endTime->addSeconds(30)) {
+            return $this->autoSubmit($session, $exam, 'time');
+        }
+
         $answers = $request->input('answers', []);
 
         $correctCount = 0;

@@ -184,8 +184,13 @@ class AdminController extends Controller
         $callback = function () use ($students) {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['NIM', 'Nama', 'Kelas']);
+            
+            $sanitize = function ($value) {
+                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+            };
+
             foreach ($students as $s) {
-                fputcsv($file, [$s->username, $s->name, $s->classroom->name ?? '']);
+                fputcsv($file, array_map($sanitize, [$s->username, $s->name, $s->classroom->name ?? '']));
             }
             fclose($file);
         };
@@ -438,6 +443,10 @@ class AdminController extends Controller
             $headerRow[] = 'Rata-rata';
             fputcsv($file, $headerRow);
 
+            $sanitize = function ($value) {
+                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+            };
+
             foreach ($students as $i => $student) {
                 $row = [$i + 1, $student->username, $student->name];
                 $totalScore = 0;
@@ -459,7 +468,7 @@ class AdminController extends Controller
                 }
 
                 $row[] = $counted > 0 ? round($totalScore / $counted, 1) : '-';
-                fputcsv($file, $row);
+                fputcsv($file, array_map($sanitize, $row));
             }
 
             fclose($file);

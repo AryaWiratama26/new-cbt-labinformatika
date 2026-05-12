@@ -252,6 +252,10 @@ class ExamController extends Controller
             $students = $allSessions->groupBy('user_id');
             $no = 1;
 
+            $sanitize = function ($value) {
+                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+            };
+
             foreach ($students as $userId => $sessions) {
                 foreach ($sessions as $session) {
                     $status = $session->score !== null
@@ -261,7 +265,7 @@ class ExamController extends Controller
                         ? $session->finished_at->format('Y-m-d H:i:s')
                         : 'Belum Selesai';
 
-                    fputcsv($file, [
+                    fputcsv($file, array_map($sanitize, [
                         $no,
                         $session->user->username,
                         $session->user->name,
@@ -269,7 +273,7 @@ class ExamController extends Controller
                         $waktu,
                         $session->score ?? '-',
                         $status,
-                    ]);
+                    ]));
                 }
                 $no++;
             }
