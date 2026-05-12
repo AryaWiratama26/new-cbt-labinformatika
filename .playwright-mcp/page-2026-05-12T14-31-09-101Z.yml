@@ -1,0 +1,77 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/dashboard
+        - link "Mata Kuliah" [ref=e11] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+        - link "Ujian" [ref=e12] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+        - link "Mahasiswa" [ref=e13] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Administrator
+        - paragraph [ref=e16]: admin
+      - generic [ref=e18]: 
+      - button "" [ref=e20]:
+        - generic [ref=e21]: 
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: BD — Basis Data
+          - heading "Modul Praktikum" [level=2] [ref=e27]
+        - generic [ref=e28]:
+          - link " Kembali" [ref=e29] [cursor=pointer]:
+            - /url: http://localhost:8000/admin/courses
+            - generic [ref=e30]: 
+            - text: Kembali
+          - link " Tambah Modul" [ref=e31] [cursor=pointer]:
+            - /url: http://localhost:8000/admin/courses/3/modules/create
+            - generic [ref=e32]: 
+            - text: Tambah Modul
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - generic [ref=e36]:
+              - generic [ref=e38]: 
+              - generic [ref=e39]: 5 Soal
+            - paragraph [ref=e40]: Modul 1
+            - heading "COntoh test" [level=3] [ref=e41]
+            - paragraph [ref=e42]: HEHE
+          - generic [ref=e43]:
+            - link "Kelola Soal" [ref=e44] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/courses/3/modules/1
+            - button "" [ref=e46]:
+              - generic [ref=e47]: 
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - generic [ref=e50]:
+              - generic [ref=e52]: 
+              - generic [ref=e53]: 3 Soal
+            - paragraph [ref=e54]: Modul 2
+            - heading "Basis Data (Test)" [level=3] [ref=e55]
+          - generic [ref=e56]:
+            - link "Kelola Soal" [ref=e57] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/courses/3/modules/3
+            - button "" [ref=e59]:
+              - generic [ref=e60]: 
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]:
+              - generic [ref=e65]: 
+              - generic [ref=e66]: 0 Soal
+            - paragraph [ref=e67]: Modul 3
+            - heading "Basis Data (test)" [level=3] [ref=e68]
+          - generic [ref=e69]:
+            - link "Kelola Soal" [ref=e70] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/courses/3/modules/4
+            - button "" [ref=e72]:
+              - generic [ref=e73]: 
+  - contentinfo [ref=e74]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.

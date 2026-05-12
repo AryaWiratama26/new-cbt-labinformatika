@@ -353,13 +353,23 @@ class ModuleController extends Controller
         $section->addText('Pembahasan: Alat pada gambar adalah termometer.');
         $section->addTextBreak();
 
+        // Soal 4 tanpa Kategori & Pembahasan (opsional)
+        $section->addText('4. Ibukota Indonesia adalah...', ['bold' => true, 'size' => 11]);
+        $section->addText('A. Jakarta');
+        $section->addText('B. Surabaya');
+        $section->addText('C. Bandung');
+        $section->addText('D. Yogyakarta');
+        $section->addText('Kunci: A');
+        $section->addTextBreak();
+
         $section->addText(
             'Keterangan:',
             ['bold' => true, 'underline' => 'single']
         );
         $section->addText('- "Kunci:" diisi dengan huruf A, B, C, atau D.');
-        $section->addText('- "Kategori:" bisa Mudah, Sedang, atau Sulit (opsional).');
-        $section->addText('- "Pembahasan:" diisi penjelasan jawaban (opsional).');
+        $section->addText('- "Kategori:" bisa Mudah, Sedang, atau Sulit (opsional — boleh dihapus).');
+        $section->addText('- "Pembahasan:" diisi penjelasan jawaban (opsional — boleh dihapus).');
+        $section->addText('- Lihat Soal 4 sebagai contoh format minimal (tanpa Kategori & Pembahasan).');
         $section->addText('- Gambar bisa disisipkan langsung di dalam soal.');
 
         $filename = 'template_soal.docx';
@@ -522,14 +532,12 @@ class ModuleController extends Controller
                 continue;
             }
 
-            // Deteksi kategori
-            if (preg_match('/^Kategori\s*:\s*(.+)/i', $text, $m)) {
+            if (preg_match('/^Kategori\s*:\s*(.*)/i', $text, $m)) {
                 $current['category'] = trim($m[1]);
                 continue;
             }
 
-            // Deteksi pembahasan
-            if (preg_match('/^Pembahasan\s*:\s*(.+)/i', $text, $m)) {
+            if (preg_match('/^Pembahasan\s*:\s*(.*)/i', $text, $m)) {
                 $current['explanation'] = trim($m[1]);
                 continue;
             }

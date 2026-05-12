@@ -1,0 +1,69 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/dashboard
+        - link "Mata Kuliah" [ref=e11] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+        - link "Ujian" [ref=e12] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+        - link "Mahasiswa" [ref=e13] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Administrator
+        - paragraph [ref=e16]: admin
+      - generic [ref=e18]: 
+      - button "" [ref=e20]:
+        - generic [ref=e21]: 
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e25]:
+        - heading "Mata Kuliah" [level=2] [ref=e26]
+        - paragraph [ref=e27]: Kelola daftar mata kuliah untuk CBT.
+      - generic [ref=e28]:
+        - generic [ref=e30]:
+          - heading "Tambah Matkul Baru" [level=3] [ref=e31]
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - generic [ref=e34]: Kode Matkul
+              - 'textbox "Contoh: IF101" [ref=e35]'
+            - generic [ref=e36]:
+              - generic [ref=e37]: Nama Mata Kuliah
+              - 'textbox "Contoh: Basis Data" [ref=e38]'
+            - button "Simpan Matkul" [ref=e39]
+        - table [ref=e42]:
+          - rowgroup [ref=e43]:
+            - row "Kode Nama Mata Kuliah Aksi" [ref=e44]:
+              - columnheader "Kode" [ref=e45]
+              - columnheader "Nama Mata Kuliah" [ref=e46]
+              - columnheader "Aksi" [ref=e47]
+          - rowgroup [ref=e48]:
+            - row "BD Basis Data  Modul " [ref=e49]:
+              - cell "BD" [ref=e50]
+              - cell "Basis Data" [ref=e51]
+              - cell " Modul " [ref=e52]:
+                - generic [ref=e53]:
+                  - link " Modul" [ref=e54] [cursor=pointer]:
+                    - /url: http://localhost:8000/admin/courses/3/modules
+                    - generic [ref=e55]: 
+                    - text: Modul
+                  - button "" [ref=e57]:
+                    - generic [ref=e58]: 
+            - row "DM Data Mining  Modul " [ref=e59]:
+              - cell "DM" [ref=e60]
+              - cell "Data Mining" [ref=e61]
+              - cell " Modul " [ref=e62]:
+                - generic [ref=e63]:
+                  - link " Modul" [ref=e64] [cursor=pointer]:
+                    - /url: http://localhost:8000/admin/courses/1/modules
+                    - generic [ref=e65]: 
+                    - text: Modul
+                  - button "" [ref=e67]:
+                    - generic [ref=e68]: 
+  - contentinfo [ref=e69]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.

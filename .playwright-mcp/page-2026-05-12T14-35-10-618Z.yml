@@ -1,0 +1,87 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/dashboard
+        - link "Mata Kuliah" [ref=e11] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+        - link "Ujian" [ref=e12] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+        - link "Mahasiswa" [ref=e13] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Administrator
+        - paragraph [ref=e16]: admin
+      - generic [ref=e18]: 
+      - button "" [ref=e20]:
+        - generic [ref=e21]: 
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - link " Basis Data" [ref=e26] [cursor=pointer]:
+            - /url: http://localhost:8000/admin/courses/3/modules
+            - generic [ref=e27]: 
+            - text: Basis Data
+          - paragraph [ref=e28]: Modul 3
+          - heading "Basis Data (test)" [level=2] [ref=e29]
+        - generic [ref=e30]:
+          - link " Template CSV" [ref=e31] [cursor=pointer]:
+            - /url: http://localhost:8000/admin/template/questions
+            - generic [ref=e32]: 
+            - text: Template CSV
+          - link " Template Word" [ref=e33] [cursor=pointer]:
+            - /url: http://localhost:8000/admin/template/questions-docx
+            - generic [ref=e34]: 
+            - text: Template Word
+          - link " Tambah Manual" [ref=e35] [cursor=pointer]:
+            - /url: http://localhost:8000/admin/courses/3/modules/4/questions/create
+            - generic [ref=e36]: 
+            - text: Tambah Manual
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - heading "Import Soal via CSV" [level=3] [ref=e39]
+          - paragraph [ref=e40]: Upload CSV soal beserta ZIP gambar (opsional).
+          - generic [ref=e41]:
+            - generic [ref=e42]:
+              - generic [ref=e43]: File CSV Soal *
+              - button "Choose File" [ref=e44] [cursor=pointer]
+            - generic [ref=e45]:
+              - generic [ref=e46]: ZIP Gambar (Opsional)
+              - button "Choose File" [ref=e47] [cursor=pointer]
+            - button " Import Soal" [ref=e48]:
+              - generic [ref=e49]: 
+              - text: Import Soal
+        - generic [ref=e50]:
+          - heading "Import Soal via Word" [level=3] [ref=e51]
+          - paragraph [ref=e52]: Upload file .docx dengan format soal yang sudah ditentukan.
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - generic [ref=e55]: File .docx Soal *
+              - button "Choose File" [ref=e56] [cursor=pointer]
+            - button " Import dari Word" [ref=e57]:
+              - generic [ref=e58]: 
+              - text: Import dari Word
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - heading "Bank Soal (0 soal)" [level=3] [ref=e62]
+            - generic [ref=e63]:
+              - textbox "Cari soal..." [ref=e64]
+              - combobox [ref=e65]:
+                - option "Semua" [selected]
+                - option "Mudah"
+                - option "Sedang"
+                - option "Sulit"
+              - button "" [ref=e66]:
+                - generic [ref=e67]: 
+          - generic [ref=e69]:
+            - generic [ref=e71]: 
+            - paragraph [ref=e72]: Belum ada soal
+            - paragraph [ref=e73]: Import via CSV atau tambah soal manual.
+  - contentinfo [ref=e75]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.

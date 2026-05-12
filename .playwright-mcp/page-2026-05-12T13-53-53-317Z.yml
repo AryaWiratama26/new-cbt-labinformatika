@@ -1,0 +1,227 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/dashboard
+        - link "Mata Kuliah" [ref=e11] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+        - link "Ujian" [ref=e12] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+        - link "Mahasiswa" [ref=e13] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Administrator
+        - paragraph [ref=e16]: admin
+      - generic [ref=e18]: 
+      - button "" [ref=e20]:
+        - generic [ref=e21]: 
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "Admin Dashboard" [level=2] [ref=e26]
+          - paragraph [ref=e27]: Ringkasan aktivitas CBT Universitas Pelita Bangsa
+        - paragraph [ref=e29]: Tuesday, 12 May 2026
+      - generic [ref=e30]:
+        - link " Mahasiswa 68" [ref=e31] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+          - generic [ref=e32]:
+            - generic [ref=e34]: 
+            - generic [ref=e35]:
+              - paragraph [ref=e36]: Mahasiswa
+              - paragraph [ref=e37]: "68"
+        - link " Mata Kuliah 2" [ref=e38] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+          - generic [ref=e39]:
+            - generic [ref=e41]: 
+            - generic [ref=e42]:
+              - paragraph [ref=e43]: Mata Kuliah
+              - paragraph [ref=e44]: "2"
+        - link " Total Kelas 6" [ref=e45] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/classrooms
+          - generic [ref=e46]:
+            - generic [ref=e48]: 
+            - generic [ref=e49]:
+              - paragraph [ref=e50]: Total Kelas
+              - paragraph [ref=e51]: "6"
+        - link " Total Ujian 6" [ref=e52] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+          - generic [ref=e53]:
+            - generic [ref=e55]: 
+            - generic [ref=e56]:
+              - paragraph [ref=e57]: Total Ujian
+              - paragraph [ref=e58]: "6"
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - paragraph [ref=e61]: Ujian Hari Ini
+          - paragraph [ref=e62]: "2"
+        - generic [ref=e63]:
+          - paragraph [ref=e64]: Sedang Berlangsung
+          - paragraph [ref=e65]: "5"
+        - generic [ref=e66]:
+          - paragraph [ref=e67]: Rata-rata Nilai
+          - paragraph [ref=e68]: "5.3"
+        - generic [ref=e69]:
+          - paragraph [ref=e70]: Partisipasi
+          - paragraph [ref=e71]: 7.4%
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - heading "Distribusi Nilai" [level=3] [ref=e74]
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - generic [ref=e77]: "29"
+              - paragraph [ref=e80]: < 50
+            - generic [ref=e81]:
+              - generic [ref=e82]: "1"
+              - paragraph [ref=e85]: 50-70
+            - generic [ref=e86]:
+              - generic [ref=e87]: "0"
+              - paragraph [ref=e89]: 70-85
+            - generic [ref=e90]:
+              - generic [ref=e91]: "0"
+              - paragraph [ref=e93]: "> 85"
+          - heading "Top 5 Mahasiswa (Rata-rata Nilai)" [level=3] [ref=e94]
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]: "1"
+              - generic [ref=e98]: Arya Wiratama
+              - generic [ref=e99]: "60.0"
+            - generic [ref=e100]:
+              - generic [ref=e101]: "2"
+              - generic [ref=e102]: Anjay Mara
+              - generic [ref=e103]: "3.4"
+        - generic [ref=e104]:
+          - heading "Aktivitas Terakhir" [level=3] [ref=e105]
+          - generic [ref=e106]:
+            - generic [ref=e107]:
+              - generic [ref=e109]: 
+              - generic [ref=e110]:
+                - paragraph [ref=e111]: Anjay Mara
+                - paragraph [ref=e112]: Test 2
+                - paragraph [ref=e113]: 2 hours ago
+              - generic [ref=e114]: "14"
+            - generic [ref=e115]:
+              - generic [ref=e117]: 
+              - generic [ref=e118]:
+                - paragraph [ref=e119]: Anjay Mara
+                - paragraph [ref=e120]: Test 2
+                - paragraph [ref=e121]: 8 hours ago
+              - generic [ref=e122]: "5"
+            - generic [ref=e123]:
+              - generic [ref=e125]: 
+              - generic [ref=e126]:
+                - paragraph [ref=e127]: Anjay Mara
+                - paragraph [ref=e128]: Test 2
+                - paragraph [ref=e129]: 8 hours ago
+              - generic [ref=e130]: "0"
+            - generic [ref=e131]:
+              - generic [ref=e133]: 
+              - generic [ref=e134]:
+                - paragraph [ref=e135]: Anjay Mara
+                - paragraph [ref=e136]: Test 2
+                - paragraph [ref=e137]: 9 hours ago
+              - generic [ref=e138]: "0"
+            - generic [ref=e139]:
+              - generic [ref=e141]: 
+              - generic [ref=e142]:
+                - paragraph [ref=e143]: Anjay Mara
+                - paragraph [ref=e144]: Test 2
+                - paragraph [ref=e145]: 9 hours ago
+              - generic [ref=e146]: "0"
+            - generic [ref=e147]:
+              - generic [ref=e149]: 
+              - generic [ref=e150]:
+                - paragraph [ref=e151]: Anjay Mara
+                - paragraph [ref=e152]: Test 2
+                - paragraph [ref=e153]: 9 hours ago
+              - generic [ref=e154]: "0"
+            - generic [ref=e155]:
+              - generic [ref=e157]: 
+              - generic [ref=e158]:
+                - paragraph [ref=e159]: Anjay Mara
+                - paragraph [ref=e160]: Test 2
+                - paragraph [ref=e161]: 9 hours ago
+              - generic [ref=e162]: "0"
+            - generic [ref=e163]:
+              - generic [ref=e165]: 
+              - generic [ref=e166]:
+                - paragraph [ref=e167]: Anjay Mara
+                - paragraph [ref=e168]: BD 2
+                - paragraph [ref=e169]: 9 hours ago
+              - generic [ref=e170]: "5"
+            - generic [ref=e171]:
+              - generic [ref=e173]: 
+              - generic [ref=e174]:
+                - paragraph [ref=e175]: Anjay Mara
+                - paragraph [ref=e176]: BD 2
+                - paragraph [ref=e177]: 9 hours ago
+              - generic [ref=e178]: "5"
+            - generic [ref=e179]:
+              - generic [ref=e181]: 
+              - generic [ref=e182]:
+                - paragraph [ref=e183]: Anjay Mara
+                - paragraph [ref=e184]: BD 2
+                - paragraph [ref=e185]: 9 hours ago
+              - generic [ref=e186]: "10"
+      - generic [ref=e187]:
+        - generic [ref=e188]:
+          - generic [ref=e189]:
+            - heading "Import Data Mahasiswa" [level=3] [ref=e190]
+            - link " Template CSV" [ref=e191] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/template/students
+              - generic [ref=e192]: 
+              - text: Template CSV
+          - paragraph [ref=e193]:
+            - text: Unggah file CSV dengan format
+            - code [ref=e194]: NIM, Nama, Kelas
+            - text: .
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - generic [ref=e197]: 
+              - button "Choose File" [ref=e198] [cursor=pointer]
+            - button " Import Sekarang" [ref=e199]:
+              - generic [ref=e200]: 
+              - text: Import Sekarang
+        - generic [ref=e201]:
+          - heading "Akses Cepat" [level=3] [ref=e202]
+          - paragraph [ref=e203]: Jalan pintas ke modul utama sistem.
+          - generic [ref=e204]:
+            - link " Manajemen Ujian Buat ujian & kelola bank soal " [ref=e205] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/exams
+              - generic [ref=e206]:
+                - generic [ref=e208]: 
+                - generic [ref=e209]:
+                  - paragraph [ref=e210]: Manajemen Ujian
+                  - paragraph [ref=e211]: Buat ujian & kelola bank soal
+              - generic [ref=e212]: 
+            - link " Mata Kuliah Daftar & modul matkul " [ref=e213] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/courses
+              - generic [ref=e214]:
+                - generic [ref=e216]: 
+                - generic [ref=e217]:
+                  - paragraph [ref=e218]: Mata Kuliah
+                  - paragraph [ref=e219]: Daftar & modul matkul
+              - generic [ref=e220]: 
+            - link " Manajemen Mahasiswa Edit, hapus, pindahkan kelas " [ref=e221] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/students
+              - generic [ref=e222]:
+                - generic [ref=e224]: 
+                - generic [ref=e225]:
+                  - paragraph [ref=e226]: Manajemen Mahasiswa
+                  - paragraph [ref=e227]: Edit, hapus, pindahkan kelas
+              - generic [ref=e228]: 
+            - link " Kelas CRUD kelas & tahun ajaran " [ref=e229] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/classrooms
+              - generic [ref=e230]:
+                - generic [ref=e232]: 
+                - generic [ref=e233]:
+                  - paragraph [ref=e234]: Kelas
+                  - paragraph [ref=e235]: CRUD kelas & tahun ajaran
+              - generic [ref=e236]: 
+  - contentinfo [ref=e237]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.
