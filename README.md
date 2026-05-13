@@ -1,60 +1,177 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🎓 CBT Praktikum
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Computer Based Testing (CBT)** — Platform ujian praktikum online untuk **Laboratorium Informatika Universitas Pelita Bangsa**.
 
-## About Laravel
+[![Laravel](https://img.shields.io/badge/Laravel-12-red?logo=laravel)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?logo=php)](https://php.net)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)](https://mysql.com)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## ✨ Fitur
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Manajemen Akademik
+- **Mata Kuliah** — CRUD mata kuliah
+- **Modul Praktikum** — CRUD modul per mata kuliah
+- **Bank Soal** — Buat, edit, duplikasi, hapus soal + gambar + pembahasan
+- **Kelas** — CRUD kelas dengan tahun ajaran dan semester
+- **Mahasiswa** — CRUD, impor CSV, ekspor CSV, pindah kelas, reset password
 
-## Learning Laravel
+### Ujian
+- **Jadwal Ujian** — Atur waktu, durasi, kelas, modul, passing grade, percobaan
+- **Sistem Remedial** — Mahasiswa dapat mengulang jika nilai di bawah passing grade
+- **Deteksi Tab** — Batasi jumlah pindah tab/buffer, auto-submit jika melebihi batas
+- **Fullscreen Wajib** — Wajibkan mode layar penuh selama ujian
+- **Auto-save Jawaban** — Simpan jawaban via AJAX setiap klik opsi
+- **Offline Queue** — Jawaban disimpan di localStorage saat offline, sinkron otomatis
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### Monitoring & Laporan
+- **Monitoring Real-time** — Pantau status peserta (auto-refresh 10 detik)
+- **Hasil Ujian** — Tabel nilai lengkap dengan status lulus/gagal/remedial
+- **PDF Laporan** — Ekspor hasil ke PDF dengan kop surat resmi UPB
+- **CSV Ekspor** — Hasil ujian, rekap kelas, data mahasiswa
+- **Rekap Nilai per Kelas** — Matriks nilai semua ujian dalam satu kelas
+- **Laporan per Mahasiswa** — Detail jawaban per soal per percobaan
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Impor Data
+| Jenis | Format | Detail |
+|-------|--------|--------|
+| Mahasiswa | CSV | Auto-create kelas, skip duplikat |
+| Soal | CSV + ZIP | 8 kolom, dukungan gambar via ZIP |
+| Soal | DOCX | Format terstruktur, ekstrak gambar inline |
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 🖥️ Screenshot
 
-### Premium Partners
+| Halaman | Tampilan |
+|---------|----------|
+| Login | ![Login](screenshots/01-login-page.png) |
+| Dashboard Admin | ![Dashboard](screenshots/02-admin-dashboard.png) |
+| Manajemen Soal | ![Bank Soal](screenshots/05-question-bank.png) |
+| Halaman Ujian | ![Ujian](screenshots/12-exam-attempt.png) |
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+> 📸 Lihat semua screenshot di folder [`screenshots/`](screenshots/)
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🚀 Instalasi
 
-## Code of Conduct
+### Prasyarat
+- PHP 8.2+
+- MySQL 8.0+
+- Composer
+- Node.js & NPM
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Langkah Instalasi
 
-## Security Vulnerabilities
+```bash
+# 1. Clone repository
+git clone <repository-url>
+cd new-cbt
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 2. Install dependencies
+composer install
+npm install
 
-## License
+# 3. Konfigurasi environment
+cp .env.example .env
+php artisan key:generate
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# new-cbt-labinformatika
+# 4. Atur database di .env
+DB_DATABASE=new_cbt
+DB_USERNAME=root
+DB_PASSWORD=
+
+# 5. Migrasi dan seed
+php artisan migrate:fresh --seed
+
+# 6. Storage link
+php artisan storage:link
+
+# 7. Build assets
+npm run build
+
+# 8. Jalankan server
+php artisan serve
+```
+
+Akses: `http://localhost:8000`
+
+### Login Default
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | `admin` | `admin` |
+| Mahasiswa | `20241001` | `test123` |
+
+---
+
+## 📖 Dokumentasi
+
+📗 **[PENGGUNAAN.MD](PENGGUNAAN.MD)** — Panduan penggunaan lengkap dari awal hingga akhir (876 baris, 17 screenshot)
+
+### Cakupan Dokumentasi
+1. Login (admin & mahasiswa)
+2. Dashboard admin + statistik
+3. Manajemen mata kuliah, modul, bank soal
+4. Manajemen kelas & mahasiswa
+5. Jadwal ujian (dengan fitur keamanan)
+6. Monitoring real-time
+7. Hasil, PDF, CSV, rekap nilai
+8. Sisi mahasiswa (ujian, auto-save, submit)
+9. Fitur keamanan (deteksi tab, fullscreen)
+10. Impor data (CSV, DOCX, ZIP)
+11. Quick start skenario lengkap
+12. Pemecahan masalah
+
+---
+
+## 🧪 Testing
+
+### Playwright E2E Tests
+
+```bash
+# Setup
+cd tests/e2e
+npm install
+
+# Jalankan server (di terminal terpisah)
+php artisan serve
+
+# Jalankan test
+npx playwright test --config=tests/e2e/playwright.config.ts
+
+# Lihat report
+npx playwright show-report tests/e2e/playwright-report
+```
+
+> ⚠️ Perhatikan: Global setup menjalankan `migrate:fresh` yang akan menghapus semua data.
+
+---
+
+## 🛠️ Tech Stack
+
+| Teknologi | Penggunaan |
+|-----------|------------|
+| **Laravel 12** | Backend framework |
+| **MySQL** | Database |
+| **Tailwind CSS 4** | Styling |
+| **Phosphor Icons** | Icon set |
+| **Vite** | Asset bundler |
+| **barryvdh/laravel-dompdf** | PDF generation |
+| **PhpOffice/PhpWord** | DOCX generation & parsing |
+| **Playwright** | E2E testing |
+
+---
+
+## 👨‍💻 Pengembang
+
+Dikembangkan oleh **Laboratorium Informatika** — **Universitas Pelita Bangsa**.
+
+---
+
+## 📄 Lisensi
+
+Hak cipta © 2026 Laboratorium Informatika Universitas Pelita Bangsa.
