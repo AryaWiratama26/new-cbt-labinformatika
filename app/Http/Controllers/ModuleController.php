@@ -81,27 +81,42 @@ class ModuleController extends Controller
             $zip = new \ZipArchive;
             if ($zip->open($request->file('images_zip')->getRealPath()) === true) {
                 $extractPath = storage_path('app/public/questions');
-                $realExtractPath = realpath($extractPath);
-                if ($realExtractPath === false) {
+                if (!is_dir($extractPath)) {
                     mkdir($extractPath, 0755, true);
-                    $realExtractPath = realpath($extractPath);
                 }
+                // Resolve sekali saja — digunakan sebagai base path acuan
+                $realExtractPath = realpath($extractPath);
                 $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+
                 for ($i = 0; $i < $zip->numFiles; $i++) {
                     $filename = $zip->getNameIndex($i);
+
+                    // BUG #4 fix: ambil basename saja, strip semua subdirektori
                     
-                    // Prevent RCE: validate extension
-                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    $basename = basename($filename);
+                    if (!$basename || $basename === '.' || $basename === '..') {
+                        continue;
+                    }
+
+                    // Validasi ekstensi
+                    $ext = strtolower(pathinfo($basename, PATHINFO_EXTENSION));
                     if (!in_array($ext, $allowedExtensions)) {
                         continue;
                     }
 
-                    $destination = $realExtractPath . '/' . $filename;
-                    $realDestination = realpath(dirname($destination));
-                    if ($realDestination === false || !str_starts_with($realDestination . '/', $realExtractPath . '/')) {
+                    // Destination: flat di dalam $realExtractPath, tanpa subdirektori
+                    $destination = $realExtractPath . DIRECTORY_SEPARATOR . $basename;
+
+                    // Double-check: pastikan destination masih di dalam folder target
+                    // Tambahkan trailing slash di base agar "questions2/" tidak dianggap valid
+                    if (strpos($destination, $realExtractPath . DIRECTORY_SEPARATOR) !== 0) {
                         continue;
                     }
-                    copy("zip://{$zip->filename}#{$filename}", $destination);
+
+                    $imageData = $zip->getFromIndex($i);
+                    if ($imageData !== false) {
+                        file_put_contents($destination, $imageData);
+                    }
                 }
                 $zip->close();
             }
@@ -115,14 +130,14 @@ class ModuleController extends Controller
         $data = array_map('str_getcsv', explode("\n", $contents));
 
         $header = array_shift($data);
-        if ($header === null) {
+        if ($header === null || empty(array_filter($header))) {
             return redirect()->route('admin.courses.modules.show', [$course, $module])
-                ->with('error', 'File CSV kosong.');
+                ->with('error', 'File CSV kosong atau format tidak valid.');
         }
 
         $importedCount = 0;
-        $colCount = isset($data[0]) && is_array($data[0]) ? count($data[0]) : 0;
-        $isNewFormat = $colCount >= 8;
+        // BUG #20 fix: Gunakan array $header untuk deteksi kolom, jangan $data[0] karena bisa kosong
+        $isNewFormat = count($header) >= 8;
 
         foreach ($data as $row) {
             if (!is_array($row) || count($row) < 6) continue;
@@ -273,9 +288,27 @@ class ModuleController extends Controller
     {
         $question->load('options');
 
+        // BUG #19 fix: salin file gambar ke path baru agar tidak shared dengan soal asli.
+        // Jika soal asli dihapus dan gambar ikut dihapus, soal duplikat tidak ikut kehilangan gambar.
+        $newImagePath = null;
+        if ($question->image) {
+            $sourcePath = storage_path('app/public/' . $question->image);
+            if (file_exists($sourcePath)) {
+                $ext      = pathinfo($question->image, PATHINFO_EXTENSION);
+                $newName  = 'questions/' . uniqid('dup_') . '.' . $ext;
+                $destPath = storage_path('app/public/' . $newName);
+                if (@copy($sourcePath, $destPath)) {
+                    $newImagePath = $newName;
+                } else {
+                    // Fallback: kalau copy gagal (e.g. permission), tetap pakai path lama
+                    $newImagePath = $question->image;
+                }
+            }
+        }
+
         $newQuestion = $module->questions()->create([
             'content'     => $question->content . ' (copy)',
-            'image'       => $question->image,
+            'image'       => $newImagePath,
             'category'    => $question->category,
             'explanation' => $question->explanation,
         ]);
@@ -505,18 +538,20 @@ class ModuleController extends Controller
                     'key'         => '',
                     'category'    => '',
                     'explanation' => '',
-                    'image'       => null,
+                    'image'       => $el['has_image'] ? $el['image'] : null, // BUG #23 fix: capture inline image on header
                 ];
                 continue;
             }
 
             if ($current === null) continue;
 
-            // Deteksi gambar standalone (paragraph yang cuma berisi gambar)
+            // BUG #23 fix: Deteksi gambar inline (teks ada + gambar ada) atau standalone
+            if ($el['has_image'] && $current['image'] === null) {
+                $current['image'] = $el['image'];
+            }
+
+            // Jika hanya gambar tanpa teks, langsung continue agar tidak nambah newline kosong
             if ($el['has_image'] && empty($text)) {
-                if ($current['image'] === null) {
-                    $current['image'] = $el['image'];
-                }
                 continue;
             }
 

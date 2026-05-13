@@ -33,6 +33,8 @@
         </div>
     </header>
 
+    <!-- BUG #17 fix: save status indicator bar -->
+    <div id="save-status-bar" class="hidden fixed top-16 left-0 right-0 z-40 text-center text-xs font-medium py-1.5 transition-all duration-300"></div>
     @if($exam->require_fullscreen)
     <div id="attempt-fs-overlay" class="fixed inset-0 z-40 bg-white/95 flex items-center justify-center p-6 hidden">
         <div class="max-w-md w-full bg-white rounded-[2rem] shadow-xl border border-gray-100 p-8 text-center">
@@ -159,8 +161,10 @@
 
     <!-- Logic Script -->
     <script>
-        const endTimeStr = "{{ $endTime->toIso8601String() }}";
-        const endTime = new Date(endTimeStr).getTime();
+        // BUG #18 fix: Gunakan sisa waktu dari server (detik) dan performance.now() 
+        // untuk mencegah manipulasi jam sistem (OS clock) oleh peserta ujian.
+        const remainingSeconds = {{ max(0, $endTime->diffInSeconds(now())) }};
+        const localStartTime = performance.now();
 
         const timerElement = document.getElementById('countdown-timer');
         const form = document.getElementById('exam-form');
@@ -175,15 +179,25 @@
                 return;
             }
             saving = true;
+
+            // BUG #17 fix: tampilkan status "Menyimpan..."
+            showSaveStatus('saving');
+
             try {
                 const payload = { question_id: questionId, option_id: optionId, _token: csrfToken };
-                await fetch(saveUrl, {
+                const res = await fetch(saveUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                if (res.ok) {
+                    showSaveStatus('saved');
+                } else {
+                    showSaveStatus('error');
+                }
             } catch (e) {
-                // silent
+                // BUG #17 fix: tampilkan status "Gagal!" bukan silent
+                showSaveStatus('error');
             } finally {
                 saving = false;
                 if (pendingSave) {
@@ -191,6 +205,29 @@
                     pendingSave = null;
                     saveAnswer(next.questionId, next.optionId);
                 }
+            }
+        }
+
+        let saveStatusTimer = null;
+        function showSaveStatus(type) {
+            const bar = document.getElementById('save-status-bar');
+            if (!bar) return;
+            clearTimeout(saveStatusTimer);
+            bar.className = 'fixed top-16 left-0 right-0 z-40 text-center text-xs font-medium py-1.5 transition-all duration-300';
+            if (type === 'saving') {
+                bar.className += ' bg-blue-50 text-blue-700 border-b border-blue-200';
+                bar.innerHTML = '<i class="ph ph-spinner animate-spin inline-block mr-1"></i> Menyimpan jawaban...';
+                bar.classList.remove('hidden');
+            } else if (type === 'saved') {
+                bar.className += ' bg-green-50 text-green-700 border-b border-green-200';
+                bar.innerHTML = '<i class="ph ph-check-circle inline-block mr-1"></i> Jawaban tersimpan';
+                bar.classList.remove('hidden');
+                saveStatusTimer = setTimeout(() => bar.classList.add('hidden'), 2000);
+            } else if (type === 'error') {
+                bar.className += ' bg-red-50 text-red-700 border-b border-red-200';
+                bar.innerHTML = '<i class="ph ph-warning-circle inline-block mr-1"></i> Gagal menyimpan! Periksa koneksi internet Anda.';
+                bar.classList.remove('hidden');
+                saveStatusTimer = setTimeout(() => bar.classList.add('hidden'), 5000);
             }
         }
 
@@ -221,8 +258,8 @@
         });
 
         const x = setInterval(function () {
-            const now = new Date().getTime();
-            const distance = endTime - now;
+            const elapsedSeconds = Math.floor((performance.now() - localStartTime) / 1000);
+            const distance = remainingSeconds - elapsedSeconds;
 
             if (distance <= 0) {
                 clearInterval(x);
@@ -232,16 +269,16 @@
                 return;
             }
 
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            const hours = Math.floor(distance / 3600);
+            const minutes = Math.floor((distance % 3600) / 60);
+            const seconds = Math.floor(distance % 60);
 
             timerElement.innerHTML = (hours < 10 ? "0" : "") + hours + ":" +
                                     (minutes < 10 ? "0" : "") + minutes + ":" +
                                     (seconds < 10 ? "0" : "") + seconds;
 
-            if (distance < 5 * 60 * 1000) {
-                timerElement.parentElement.classList.add('animate-pulse');
+            if (distance < 5 * 60) {
+                timerElement.parentElement.classList.add('animate-pulse', 'text-red-600');
             }
         }, 1000);
 

@@ -28,7 +28,8 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'username' => 'The provided credentials do not match our records.',
+            // BUG #21 fix: Ubah pesan error ke Bahasa Indonesia agar konsisten
+            'username' => 'Username atau password yang Anda masukkan salah.',
         ])->onlyInput('username');
     }
 

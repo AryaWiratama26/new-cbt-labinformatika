@@ -16,52 +16,63 @@ class AdminController extends Controller
 {
     public function dashboard()
     {
-        $studentsCount = User::where('role', 'mahasiswa')->count();
-        $coursesCount = Course::count();
-        $classroomsCount = Classroom::count();
-        $examsCount = Exam::count();
+        // BUG #22 fix: Cache dashboard stats selama 60 detik untuk mengurangi ~14 query berat
+        $stats = \Illuminate\Support\Facades\Cache::remember('admin_dashboard_stats', 60, function () {
+            $studentsCount = User::where('role', 'mahasiswa')->count();
+            $coursesCount = Course::count();
+            $classroomsCount = Classroom::count();
+            $examsCount = Exam::count();
 
-        $examsToday = Exam::whereDate('start_time', today())->count();
-        $activeExams = Exam::where('is_active', true)
-            ->where('start_time', '<=', now())
-            ->where('end_time', '>=', now())
-            ->count();
+            $examsToday = Exam::whereDate('start_time', today())->count();
+            $activeExams = Exam::where('is_active', true)
+                ->where('start_time', '<=', now())
+                ->where('end_time', '>=', now())
+                ->count();
 
-        $avgScore = ExamSession::whereNotNull('score')->avg('score');
-        $totalSessions = ExamSession::count();
+            $avgScore = ExamSession::whereNotNull('score')->avg('score');
+            
+            // BUG #11 fix: hanya hitung 1 session per mahasiswa per ujian
+            $totalSessions = ExamSession::whereNotNull('finished_at')
+                ->where('attempt_number', 1)
+                ->count();
 
-        $participationRate = 0;
-        $totalPossibleSessions = User::where('role', 'mahasiswa')->count() * Exam::where('is_active', true)->count();
-        if ($totalPossibleSessions > 0) {
-            $participationRate = round(($totalSessions / $totalPossibleSessions) * 100, 1);
-        }
+            $participationRate = 0;
+            $totalPossibleSessions = User::where('role', 'mahasiswa')->count()
+                * Exam::where('is_active', true)->count();
+            if ($totalPossibleSessions > 0) {
+                $participationRate = min(100, round(($totalSessions / $totalPossibleSessions) * 100, 1));
+            }
 
-        $scoreDistribution = [
-            'below50' => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
-            '50to70'  => ExamSession::whereNotNull('score')->whereBetween('score', [50, 70])->count(),
-            '70to85'  => ExamSession::whereNotNull('score')->whereBetween('score', [70, 85])->count(),
-            'above85' => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
-        ];
+            // BUG #12 fix: gunakan range eksklusif-inklusive
+            $scoreDistribution = [
+                'below50' => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
+                '50to70'  => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
+                '70to85'  => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
+                'above85' => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
+            ];
 
-        $recentSessions = ExamSession::with(['user', 'exam'])
-            ->whereNotNull('finished_at')
-            ->latest('finished_at')
-            ->take(10)
-            ->get();
+            $recentSessions = ExamSession::with(['user', 'exam'])
+                ->whereNotNull('finished_at')
+                ->latest('finished_at')
+                ->take(10)
+                ->get();
 
-        $topStudents = ExamSession::with('user')
-            ->whereNotNull('score')
-            ->selectRaw('user_id, AVG(score) as avg_score')
-            ->groupBy('user_id')
-            ->orderByDesc('avg_score')
-            ->take(5)
-            ->get();
+            $topStudents = ExamSession::with('user')
+                ->whereNotNull('score')
+                ->selectRaw('user_id, AVG(score) as avg_score')
+                ->groupBy('user_id')
+                ->orderByDesc('avg_score')
+                ->take(5)
+                ->get();
 
-        return view('admin.dashboard', compact(
-            'studentsCount', 'coursesCount', 'classroomsCount', 'examsCount',
-            'examsToday', 'activeExams', 'avgScore', 'participationRate',
-            'scoreDistribution', 'recentSessions', 'topStudents'
-        ));
+            return compact(
+                'studentsCount', 'coursesCount', 'classroomsCount', 'examsCount',
+                'examsToday', 'activeExams', 'avgScore', 'participationRate',
+                'scoreDistribution', 'recentSessions', 'topStudents'
+            );
+        });
+
+        return view('admin.dashboard', $stats);
     }
 
     public function students(Request $request)
@@ -150,7 +161,11 @@ class AdminController extends Controller
 
     public function destroyStudent(User $user)
     {
-        if ($user->role !== 'mahasiswa') abort(403);
+        // BUG #5 fix: pastikan hanya mahasiswa yang bisa dihapus dari sini
+        
+        if ($user->role !== 'mahasiswa') {
+            abort(403, 'Hanya mahasiswa yang dapat dihapus melalui menu ini.');
+        }
         $user->delete();
         return redirect()->route('admin.students.index')->with('success', 'Mahasiswa berhasil dihapus.');
     }
@@ -161,8 +176,9 @@ class AdminController extends Controller
         if (empty($ids)) {
             return redirect()->back()->with('error', 'Tidak ada mahasiswa yang dipilih.');
         }
-        User::whereIn('id', $ids)->where('role', 'mahasiswa')->delete();
-        return redirect()->back()->with('success', count($ids) . ' Mahasiswa berhasil dihapus.');
+        // BUG #5 fix: filter ketat hanya role mahasiswa, jangan sampai admin ikut terhapus
+        $deleted = User::whereIn('id', $ids)->where('role', 'mahasiswa')->delete();
+        return redirect()->back()->with('success', $deleted . ' mahasiswa berhasil dihapus.');
     }
 
     public function exportStudents(Request $request)
@@ -327,20 +343,28 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'File CSV kosong.');
         }
 
-        $importedCount = 0;
+        $importedCount  = 0;
         $duplicateCount = 0;
-        $errorRows = [];
+        $errorRows      = [];
+        $newClassrooms  = []; // BUG #7 fix: track kelas baru yang dibuat
 
         foreach ($data as $index => $row) {
             if (!is_array($row) || count($row) < 3) continue;
 
-            $nim = trim($row[0] ?? '');
-            $nama = trim($row[1] ?? 'Mahasiswa');
+            $nim   = trim($row[0] ?? '');
+            $nama  = trim($row[1] ?? 'Mahasiswa');
             $kelas = trim($row[2] ?? 'Umum');
 
             if ($nim) {
                 try {
-                    $classroom = Classroom::firstOrCreate(['name' => $kelas]);
+                    // BUG #7 fix: gunakan firstOrCreate tapi catat jika kelas baru dibuat
+                    $classroomExists = Classroom::where('name', $kelas)->first();
+                    if (!$classroomExists) {
+                        $classroom = Classroom::create(['name' => $kelas]);
+                        $newClassrooms[] = $kelas;
+                    } else {
+                        $classroom = $classroomExists;
+                    }
 
                     $existing = User::where('username', $nim)->first();
                     if ($existing) {
@@ -349,10 +373,10 @@ class AdminController extends Controller
                     }
 
                     User::create([
-                        'username' => $nim,
-                        'name' => $nama,
-                        'password' => Hash::make($nim),
-                        'role' => 'mahasiswa',
+                        'username'     => $nim,
+                        'name'         => $nama,
+                        'password'     => Hash::make($nim),
+                        'role'         => 'mahasiswa',
                         'classroom_id' => $classroom->id,
                     ]);
                     $importedCount++;
@@ -365,6 +389,10 @@ class AdminController extends Controller
         $message = "{$importedCount} data berhasil diimpor.";
         if ($duplicateCount > 0) {
             $message .= " {$duplicateCount} duplikat dilewati.";
+        }
+        // BUG #7 fix: tampilkan peringatan jika ada kelas baru yang dibuat otomatis
+        if (!empty($newClassrooms)) {
+            $message .= " ⚠️ Kelas baru dibuat otomatis: " . implode(', ', array_unique($newClassrooms)) . ". Lengkapi info tahun ajaran di menu Kelola Kelas.";
         }
         if (!empty($errorRows)) {
             $message .= " " . count($errorRows) . " error: " . implode('; ', array_slice($errorRows, 0, 3));
@@ -421,24 +449,28 @@ class AdminController extends Controller
             ->get()
             ->groupBy(fn($s) => $s->user_id . '_' . $s->exam_id);
 
+        // BUG #14 fix: load 'course' SEBELUM callback closure dibuat,
+        // bukan sesudah — agar $exam->course tersedia di dalam callback
+        $exams->load('course');
+
         $filename = 'rekap_kelas_' . str_replace(['"', "\n", "\r"], '', $classroom->name) . '.csv';
 
         $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename={$filename}",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Pragma'              => 'no-cache',
+            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires'             => '0',
         ];
-
-        $exams->load('course');
 
         $callback = function () use ($exams, $students, $sessions) {
             $file = fopen('php://output', 'w');
 
             $headerRow = ['No', 'NIM', 'Nama'];
             foreach ($exams as $exam) {
-                $headerRow[] = $exam->title . ' (' . $exam->course->code . ')';
+                // BUG #14 fix: defensive null-check untuk course
+                $courseCode = $exam->course->code ?? '?';
+                $headerRow[] = $exam->title . ' (' . $courseCode . ')';
             }
             $headerRow[] = 'Rata-rata';
             fputcsv($file, $headerRow);

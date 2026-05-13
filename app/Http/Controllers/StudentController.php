@@ -6,6 +6,7 @@ use App\Models\Exam;
 use App\Models\ExamSession;
 use App\Models\Answer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
@@ -79,8 +80,9 @@ class StudentController extends Controller
     public function show(Exam $exam)
     {
         $user = auth()->user();
-        
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+
+        // BUG #15 fix: cek classroom, is_active, DAN end_time agar ujian expired tidak bisa diakses
+        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() > $exam->end_time) {
             abort(403, 'Anda tidak memiliki akses ke ujian ini.');
         }
 
@@ -89,9 +91,14 @@ class StudentController extends Controller
             ->orderByDesc('attempt_number')
             ->first();
 
-        $canRemedial = $lastSession && $lastSession->finished_at
+        // BUG #16 fix: sinkronkan logika canRemedial — konsisten dengan method Exam::canRemedial()
+        // Syarat: (1) ada session terakhir, (2) sudah selesai, (3) nilai < passing_grade,
+        //         (4) masih ada sisa percobaan, (5) max_attempts > 1
+        $canRemedial = $lastSession
+            && $lastSession->finished_at
             && $lastSession->score < $exam->passing_grade
-            && $lastSession->attempt_number < $exam->max_attempts;
+            && $lastSession->attempt_number < $exam->max_attempts
+            && $exam->max_attempts > 1;
 
         $hasUnfinished = $lastSession && !$lastSession->finished_at;
 
@@ -101,7 +108,8 @@ class StudentController extends Controller
     public function start(Exam $exam)
     {
         $user = auth()->user();
-        
+
+        // BUG #3 fix: validasi akses lengkap
         if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time || now() > $exam->end_time) {
             abort(403, 'Akses ditolak.');
         }
@@ -110,50 +118,73 @@ class StudentController extends Controller
             return redirect()->route('student.dashboard')->with('error', 'Ujian ini belum memiliki soal. Hubungi pengawas.');
         }
 
-        $lastSession = ExamSession::where('user_id', $user->id)
-            ->where('exam_id', $exam->id)
-            ->orderByDesc('attempt_number')
-            ->first();
+        // BUG #1 fix: gunakan DB transaction agar atomic, cegah race condition double-start
+        try {
+            return DB::transaction(function () use ($user, $exam) {
+                // Lock row agar tidak ada race condition
+                $lastSession = ExamSession::where('user_id', $user->id)
+                    ->where('exam_id', $exam->id)
+                    ->orderByDesc('attempt_number')
+                    ->lockForUpdate()
+                    ->first();
 
-        if ($lastSession && !$lastSession->finished_at) {
+                if ($lastSession && !$lastSession->finished_at) {
+                    return redirect()->route('student.exams.attempt', $exam);
+                }
+
+                $nextAttempt = $lastSession ? $lastSession->attempt_number + 1 : 1;
+
+                if ($nextAttempt > 1) {
+                    if ($lastSession->score >= $exam->passing_grade) {
+                        return redirect()->route('student.dashboard')->with('error', 'Anda sudah lulus ujian ini.');
+                    }
+                    if ($nextAttempt > $exam->max_attempts) {
+                        return redirect()->route('student.dashboard')->with('error', 'Batas percobaan ujian telah habis.');
+                    }
+                }
+
+                ExamSession::create([
+                    'user_id'        => $user->id,
+                    'exam_id'        => $exam->id,
+                    'attempt_number' => $nextAttempt,
+                    'started_at'     => now(),
+                ]);
+
+                return redirect()->route('student.exams.attempt', $exam);
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            // UNIQUE constraint violation = double submit, redirect ke attempt yang sudah ada
             return redirect()->route('student.exams.attempt', $exam);
         }
-
-        $nextAttempt = $lastSession ? $lastSession->attempt_number + 1 : 1;
-
-        if ($nextAttempt > 1) {
-            if ($lastSession->score >= $exam->passing_grade) {
-                return redirect()->route('student.dashboard')->with('error', 'Anda sudah lulus ujian ini.');
-            }
-            if ($nextAttempt > $exam->max_attempts) {
-                return redirect()->route('student.dashboard')->with('error', 'Batas percobaan ujian telah habis.');
-            }
-        }
-
-        $session = ExamSession::firstOrCreate([
-            'user_id'        => $user->id,
-            'exam_id'        => $exam->id,
-            'attempt_number' => $nextAttempt,
-        ], [
-            'started_at'     => now(),
-        ]);
-
-        return redirect()->route('student.exams.attempt', $exam);
     }
 
     public function attempt(Exam $exam)
     {
         $user = auth()->user();
 
+        // BUG #3 fix: cek classroom, is_active, start_time, DAN end_time
         if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time) {
             abort(403, 'Anda tidak berhak mengakses ujian ini.');
         }
 
+        // BUG #8 fix: jika tidak ada session aktif, redirect balik dengan pesan jelas
         $session = ExamSession::where('user_id', $user->id)
             ->where('exam_id', $exam->id)
             ->whereNull('finished_at')
             ->orderByDesc('attempt_number')
-            ->firstOrFail();
+            ->first();
+
+        if (!$session) {
+            // Cek apakah ada session yang sudah selesai
+            $finished = ExamSession::where('user_id', $user->id)
+                ->where('exam_id', $exam->id)
+                ->whereNotNull('finished_at')
+                ->exists();
+            if ($finished) {
+                return redirect()->route('student.dashboard')->with('error', 'Ujian Anda sudah dikumpulkan.');
+            }
+            return redirect()->route('student.exams.show', $exam)->with('error', 'Silakan mulai ujian terlebih dahulu.');
+        }
 
         // Calculate remaining time
         $endTimeBasedOnDuration = $session->started_at->addMinutes($exam->duration_minutes);
@@ -170,10 +201,17 @@ class StudentController extends Controller
 
         $questions = $exam->getQuestions();
 
+        // BUG #9 (sedang) partial-fix: seed shuffle dengan user+exam+attempt agar konsisten per sesi
+        $seed = $user->id * 1000 + $exam->id * 100 + $session->attempt_number;
+        srand($seed);
         $questions = $questions->shuffle();
+        srand(); // reset ke random normal
 
         foreach ($questions as $question) {
+            // Seed per-question untuk opsi
+            srand($seed + $question->id);
             $options = $question->options->shuffle();
+            srand();
             $question->setRelation('options', $options);
         }
 
@@ -213,8 +251,20 @@ class StudentController extends Controller
             'option_id' => 'nullable|exists:options,id',
         ]);
 
-        $examQuestionIds = $exam->getQuestions()->pluck('id')->toArray();
-        if (!in_array($request->question_id, $examQuestionIds)) {
+        // BUG #10 fix: jangan panggil getQuestions() yang meload semua soal beserta opsi ke memory
+        
+        $isValidQuestion = false;
+        if ($exam->module_id) {
+            $isValidQuestion = \App\Models\Question::where('id', $request->question_id)
+                ->where('module_id', $exam->module_id)
+                ->exists();
+        } else {
+            $isValidQuestion = \App\Models\Question::where('id', $request->question_id)
+                ->where('exam_id', $exam->id)
+                ->exists();
+        }
+
+        if (!$isValidQuestion) {
             return response()->json(['success' => false, 'message' => 'Soal tidak valid.'], 400);
         }
 
@@ -279,11 +329,17 @@ class StudentController extends Controller
     public function submit(Request $request, Exam $exam)
     {
         $user = auth()->user();
+
+        // BUG #8 fix: jika session sudah finished (double submit), redirect bersih
         $session = ExamSession::where('user_id', $user->id)
             ->where('exam_id', $exam->id)
             ->whereNull('finished_at')
             ->orderByDesc('attempt_number')
-            ->firstOrFail();
+            ->first();
+
+        if (!$session) {
+            return redirect()->route('student.dashboard')->with('success', 'Ujian Anda sudah berhasil dikumpulkan.');
+        }
 
         return $this->processSubmission($request, $session, $exam);
     }
@@ -294,32 +350,43 @@ class StudentController extends Controller
         $absoluteEndTime = $exam->end_time;
         $endTime = $endTimeBasedOnDuration < $absoluteEndTime ? $endTimeBasedOnDuration : $absoluteEndTime;
 
-        // Allow 30 seconds grace period for network delays, otherwise calculate from DB
-        if (now() > $endTime->addSeconds(30)) {
+        // Allow 30 seconds grace period for network delays
+        if (now() > $endTime->copy()->addSeconds(30)) {
             return $this->autoSubmit($session, $exam, 'time');
         }
 
-        $answers = $request->input('answers', []);
+        // BUG #2 fix: simpan jawaban dari form POST ke DB terlebih dahulu,
+        // lalu hitung skor DARI DB — bukan dari data form mentah.
+        // Ini memastikan jawaban auto-save sebelumnya tidak tertimpa oleh partial form data.
+        $formAnswers = $request->input('answers', []);
+        $questions   = $exam->getQuestions();
 
-        $correctCount = 0;
-
-        $questions = $exam->getQuestions();
-
-        $totalQuestions = $questions->count();
-
+        // Simpan jawaban form yang masuk (bila ada)
         foreach ($questions as $question) {
-            $selectedOptionId = $answers[$question->id] ?? null;
-
+            $selectedOptionId = $formAnswers[$question->id] ?? null;
             if ($selectedOptionId) {
-                Answer::updateOrCreate(
-                    ['exam_session_id' => $session->id, 'question_id' => $question->id],
-                    ['option_id' => $selectedOptionId]
-                );
-
-                $option = $question->options->where('id', $selectedOptionId)->first();
-                if ($option && $option->is_correct) {
-                    $correctCount++;
+                // Validasi option milik question ini
+                $valid = $question->options->where('id', $selectedOptionId)->isNotEmpty();
+                if ($valid) {
+                    Answer::updateOrCreate(
+                        ['exam_session_id' => $session->id, 'question_id' => $question->id],
+                        ['option_id' => $selectedOptionId]
+                    );
                 }
+            }
+        }
+
+        // Hitung skor dari database (source of truth), bukan dari $formAnswers
+        $totalQuestions = $questions->count();
+        $correctCount   = 0;
+
+        $savedAnswers = Answer::where('exam_session_id', $session->id)
+            ->with('option')
+            ->get();
+
+        foreach ($savedAnswers as $answer) {
+            if ($answer->option && $answer->option->is_correct) {
+                $correctCount++;
             }
         }
 

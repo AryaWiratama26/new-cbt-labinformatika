@@ -26,6 +26,11 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
+        // BUG #26 fix: Jangan biarkan admin menghapus course yang masih memiliki modul atau ujian
+        if ($course->modules()->exists() || $course->exams()->exists()) {
+            return redirect()->route('admin.courses.index')->with('error', 'Gagal dihapus! Mata kuliah ini masih memiliki modul atau ujian terkait.');
+        }
+
         $course->delete();
         return redirect()->route('admin.courses.index')->with('success', 'Mata kuliah berhasil dihapus.');
     }

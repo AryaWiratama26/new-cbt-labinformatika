@@ -123,9 +123,10 @@ class ExamController extends Controller
             ->orderBy('name')
             ->get();
 
+        // BUG #13 fix: 
         $sessions = ExamSession::where('exam_id', $exam->id)
             ->whereIn('user_id', $students->pluck('id'))
-            ->orderBy('attempt_number', 'desc')
+            ->orderBy('attempt_number', 'asc')
             ->get()
             ->keyBy('user_id');
 
@@ -160,7 +161,10 @@ class ExamController extends Controller
         ];
 
         if ($request->ajax() || $request->wantsJson()) {
-            $participantsJson = $participants->mapWithKeys(function ($p) {
+            // BUG #6 fix: gunakan $exam->passing_grade, bukan hardcode 70
+            $passingGrade = $exam->passing_grade;
+
+            $participantsJson = $participants->mapWithKeys(function ($p) use ($passingGrade) {
                 $statusBadge = '';
                 if ($p->status === 'in_progress') {
                     $statusBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200"><span class="h-2 w-2 rounded-full bg-green-500 inline-block animate-pulse"></span> Sedang Ujian</span>';
@@ -172,16 +176,16 @@ class ExamController extends Controller
 
                 $scoreClass = 'text-gray-400';
                 if ($p->score !== null) {
-                    $scoreClass = $p->score >= 70 ? 'text-green-600' : 'text-red-500';
+                    $scoreClass = $p->score >= $passingGrade ? 'text-green-600' : 'text-red-500';
                 }
 
                 return [$p->username => [
-                    'status'      => $p->status,
+                    'status'       => $p->status,
                     'status_badge' => $statusBadge,
-                    'started_at'  => $p->started_at ? $p->started_at->format('H:i:s') : '-',
-                    'finished_at' => $p->finished_at ? $p->finished_at->format('H:i:s') : '-',
-                    'score'       => $p->score !== null ? (string) $p->score : '-',
-                    'score_class' => $scoreClass,
+                    'started_at'   => $p->started_at ? $p->started_at->format('H:i:s') : '-',
+                    'finished_at'  => $p->finished_at ? $p->finished_at->format('H:i:s') : '-',
+                    'score'        => $p->score !== null ? (string) $p->score : '-',
+                    'score_class'  => $scoreClass,
                 ]];
             });
 
