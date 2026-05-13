@@ -1,4 +1,4 @@
-# 🎓 CBT Praktikum
+# CBT Praktikum
 
 **Computer Based Testing (CBT)** — Platform ujian praktikum online untuk **Laboratorium Informatika Universitas Pelita Bangsa**.
 
@@ -9,7 +9,7 @@
 
 ---
 
-## ✨ Fitur
+## Fitur
 
 ### Manajemen Akademik
 - **Mata Kuliah** — CRUD mata kuliah
@@ -43,7 +43,7 @@
 
 ---
 
-## 🖥️ Screenshot
+## Screenshot
 
 | Halaman | Tampilan |
 |---------|----------|
@@ -52,11 +52,11 @@
 | Manajemen Soal | ![Bank Soal](screenshots/05-question-bank.png) |
 | Halaman Ujian | ![Ujian](screenshots/12-exam-attempt.png) |
 
-> 📸 Lihat semua screenshot di folder [`screenshots/`](screenshots/)
+> Lihat semua screenshot di folder [`screenshots/`](screenshots/)
 
 ---
 
-## 🚀 Instalasi
+## Instalasi
 
 ### Prasyarat
 - PHP 8.2+
@@ -108,9 +108,9 @@ Akses: `http://localhost:8000`
 
 ---
 
-## 📖 Dokumentasi
+## Dokumentasi
 
-📗 **[PENGGUNAAN.MD](PENGGUNAAN.MD)** — Panduan penggunaan lengkap dari awal hingga akhir (876 baris, 17 screenshot)
+**[PENGGUNAAN.MD](PENGGUNAAN.MD)** — Panduan penggunaan lengkap dari awal hingga akhir (876 baris, 17 screenshot)
 
 ### Cakupan Dokumentasi
 1. Login (admin & mahasiswa)
@@ -128,7 +128,7 @@ Akses: `http://localhost:8000`
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Playwright E2E Tests
 
@@ -147,11 +147,11 @@ npx playwright test --config=tests/e2e/playwright.config.ts
 npx playwright show-report tests/e2e/playwright-report
 ```
 
-> ⚠️ Perhatikan: Global setup menjalankan `migrate:fresh` yang akan menghapus semua data.
+> Perhatikan: Global setup menjalankan `migrate:fresh` yang akan menghapus semua data.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Teknologi | Penggunaan |
 |-----------|------------|
@@ -166,12 +166,12 @@ npx playwright show-report tests/e2e/playwright-report
 
 ---
 
-## 👨‍💻 Pengembang
+## Pengembang
 
 Dikembangkan oleh **Laboratorium Informatika** — **Universitas Pelita Bangsa**.
 
 ---
 
-## 📄 Lisensi
+## Lisensi
 
 Hak cipta © 2026 Laboratorium Informatika Universitas Pelita Bangsa.
