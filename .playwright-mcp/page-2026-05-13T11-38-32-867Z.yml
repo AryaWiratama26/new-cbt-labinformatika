@@ -1,0 +1,32 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img "Logo" [ref=e7]
+        - img "Logo" [ref=e9]
+        - paragraph [ref=e10]: Universitas Pelita Bangsa
+        - heading "Computer Based Test." [level=1] [ref=e11]:
+          - text: Computer
+          - text: Based Test.
+        - paragraph [ref=e12]: Selamat datang di platform ujian praktikum online. Silakan masuk menggunakan NIM atau kredensial yang telah diberikan.
+      - generic [ref=e13]:
+        - heading "Masuk ke Akun Anda" [level=2] [ref=e14]
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - generic [ref=e17]: Username / NIM
+            - generic [ref=e18]:
+              - generic:
+                - generic: 
+              - textbox "Username / NIM" [active] [ref=e19]:
+                - /placeholder: Masukkan NIM Anda
+          - generic [ref=e20]:
+            - generic [ref=e21]: Password
+            - generic [ref=e22]:
+              - generic:
+                - generic: 
+              - textbox "Password" [ref=e23]:
+                - /placeholder: ••••••••
+          - button "Masuk Sekarang " [ref=e25]:
+            - generic [ref=e26]: Masuk Sekarang
+            - generic [ref=e27]: 
+  - contentinfo [ref=e28]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.

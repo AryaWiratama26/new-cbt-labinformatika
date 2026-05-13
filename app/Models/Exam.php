@@ -11,6 +11,8 @@ class Exam extends Model
     protected $casts = [
         'start_time' => 'datetime',
         'end_time' => 'datetime',
+        'is_active' => 'boolean',
+        'require_fullscreen' => 'boolean',
     ];
 
     public function course()

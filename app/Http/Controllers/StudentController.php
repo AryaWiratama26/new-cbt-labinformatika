@@ -163,7 +163,8 @@ class StudentController extends Controller
         $user = auth()->user();
 
         // BUG #3 fix: cek classroom, is_active, start_time, DAN end_time
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time) {
+        // NEW-12 fix: tambahkan pengecekan end_time yang sebelumnya missing
+        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time || now() > $exam->end_time) {
             abort(403, 'Anda tidak berhak mengakses ujian ini.');
         }
 
@@ -201,17 +202,13 @@ class StudentController extends Controller
 
         $questions = $exam->getQuestions();
 
-        // BUG #9 (sedang) partial-fix: seed shuffle dengan user+exam+attempt agar konsisten per sesi
-        $seed = $user->id * 1000 + $exam->id * 100 + $session->attempt_number;
-        srand($seed);
-        $questions = $questions->shuffle();
-        srand(); // reset ke random normal
+        // BUG #08 fix: gunakan deterministic sort berbasis hash, bukan global srand
+        // srand() mempolusi global PHP random state dan seed bisa diprediksi
+        $seed = $user->id . '_' . $exam->id . '_' . $session->attempt_number;
+        $questions = $questions->sortBy(fn($q) => crc32($seed . '_q_' . $q->id))->values();
 
         foreach ($questions as $question) {
-            // Seed per-question untuk opsi
-            srand($seed + $question->id);
-            $options = $question->options->shuffle();
-            srand();
+            $options = $question->options->sortBy(fn($o) => crc32($seed . '_o_' . $question->id . '_' . $o->id))->values();
             $question->setRelation('options', $options);
         }
 
@@ -312,16 +309,104 @@ class StudentController extends Controller
             return response()->json(['success' => false, 'message' => 'Tab switch detection disabled'], 400);
         }
 
-        $session->increment('tab_switches');
+        // Offline-resilient: jika client kirim total (dari akumulasi offline),
+        // gunakan SET bukan INCREMENT
+        if ($request->has('total_switches') && is_numeric($request->total_switches)) {
+            $newTotal = max($session->tab_switches, (int) $request->total_switches);
+            $session->update(['tab_switches' => $newTotal]);
+        } else {
+            $session->increment('tab_switches');
+        }
 
         $limit = $exam->max_tab_switches;
-        $current = $session->tab_switches;
+        $current = $session->fresh()->tab_switches;
         $exceeded = $limit && $current > $limit;
 
         return response()->json([
             'success' => true,
             'tab_switches' => $current,
             'max_tab_switches' => $limit,
+            'exceeded' => $exceeded,
+        ]);
+    }
+
+    public function syncAnswers(Request $request, Exam $exam)
+    {
+        $user = auth()->user();
+
+        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $session = ExamSession::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->whereNull('finished_at')
+            ->orderByDesc('attempt_number')
+            ->first();
+
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Sesi tidak ditemukan.'], 404);
+        }
+
+        $endTimeBasedOnDuration = $session->started_at->addMinutes($exam->duration_minutes);
+        $absoluteEndTime = $exam->end_time;
+        $endTime = $endTimeBasedOnDuration < $absoluteEndTime ? $endTimeBasedOnDuration : $absoluteEndTime;
+
+        if (now() >= $endTime->copy()->addSeconds(60)) {
+            return response()->json(['success' => false, 'message' => 'Waktu ujian telah habis.', 'expired' => true], 403);
+        }
+
+        $request->validate([
+            'answers' => 'nullable|array',
+            'answers.*.question_id' => 'required|integer',
+            'answers.*.option_id' => 'required|integer',
+            'tab_switches' => 'nullable|integer|min:0',
+        ]);
+
+        $synced = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($request, $session, $exam, &$synced, &$errors) {
+            foreach ($request->input('answers', []) as $item) {
+                $valid = $exam->module_id
+                    ? \App\Models\Question::where('id', $item['question_id'])->where('module_id', $exam->module_id)->exists()
+                    : \App\Models\Question::where('id', $item['question_id'])->where('exam_id', $exam->id)->exists();
+
+                if (!$valid) {
+                    $errors[] = "Soal #{$item['question_id']} tidak valid.";
+                    continue;
+                }
+
+                $optionValid = \App\Models\Option::where('id', $item['option_id'])
+                    ->where('question_id', $item['question_id'])
+                    ->exists();
+
+                if (!$optionValid) {
+                    $errors[] = "Opsi #{$item['option_id']} tidak valid.";
+                    continue;
+                }
+
+                Answer::updateOrCreate(
+                    ['exam_session_id' => $session->id, 'question_id' => $item['question_id']],
+                    ['option_id' => $item['option_id']]
+                );
+                $synced++;
+            }
+
+            if ($request->has('tab_switches')) {
+                $newTotal = max($session->tab_switches, (int) $request->tab_switches);
+                $session->update(['tab_switches' => $newTotal]);
+            }
+        });
+
+        $freshSession = $session->fresh();
+        $exceeded = $exam->max_tab_switches && $freshSession->tab_switches > $exam->max_tab_switches;
+
+        return response()->json([
+            'success' => true,
+            'synced' => $synced,
+            'errors' => $errors,
+            'tab_switches' => $freshSession->tab_switches,
             'exceeded' => $exceeded,
         ]);
     }

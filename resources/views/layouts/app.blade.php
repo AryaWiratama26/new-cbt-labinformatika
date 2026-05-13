@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config('app.name', 'CBT Praktikum') }}</title>
+    <!-- BUG #16 fix: CSRF meta tag untuk AJAX POST support -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>

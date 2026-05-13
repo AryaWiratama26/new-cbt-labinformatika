@@ -84,5 +84,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/student/exams/{exam}/submit', [\App\Http\Controllers\StudentController::class, 'submit'])->name('student.exams.submit');
         Route::post('/student/exams/{exam}/save-answer', [\App\Http\Controllers\StudentController::class, 'saveAnswer'])->name('student.exams.save_answer');
         Route::post('/student/exams/{exam}/tab-switch', [\App\Http\Controllers\StudentController::class, 'reportTabSwitch'])->name('student.exams.tab_switch');
+        Route::post('/student/exams/{exam}/sync', [\App\Http\Controllers\StudentController::class, 'syncAnswers'])->name('student.exams.sync');
     });
 });

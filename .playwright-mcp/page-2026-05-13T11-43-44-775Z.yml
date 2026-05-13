@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e6]: 
+        - generic [ref=e7]:
+          - heading "E2E Offline Test" [level=1] [ref=e8]
+          - paragraph [ref=e9]: Test Student (20241001)
+      - generic [ref=e10]:
+        - generic [ref=e11]: 
+        - generic [ref=e12]: 01:59:57
+  - text: 
+  - main [ref=e13]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]: "1"
+        - paragraph [ref=e21]: Test question?
+      - generic [ref=e22]:
+        - generic [ref=e23] [cursor=pointer]:
+          - radio "Answer C" [ref=e24]
+          - generic [ref=e25]: Answer C
+        - generic [ref=e26] [cursor=pointer]:
+          - radio "Answer B" [ref=e27]
+          - generic [ref=e28]: Answer B
+        - generic [ref=e29] [cursor=pointer]:
+          - radio "Answer D" [ref=e30]
+          - generic [ref=e31]: Answer D
+        - generic [ref=e32] [cursor=pointer]:
+          - radio "Answer A" [ref=e33]
+          - generic [ref=e34]: Answer A
+    - text: 
+  - button " Kumpulkan Ujian" [ref=e36]:
+    - generic [ref=e37]: 
+    - text: Kumpulkan Ujian
+  - text:    

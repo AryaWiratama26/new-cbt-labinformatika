@@ -280,9 +280,9 @@
                 @foreach($sessions as $session)
                     <tr>
                         <td style="text-align:center">{{ $loop->first ? $no : '' }}</td>
-                        <td>{{ $session->user->username }}</td>
+                        <td>{{ $session->user->username ?? 'Dihapus' }}</td>
                         <td>
-                            {{ $session->user->name }}
+                            {{ $session->user->name ?? 'Mahasiswa Dihapus' }}
                             @if($session->attempt_number > 1)
                                 <span class="badge-remed">Remedial</span>
                             @endif

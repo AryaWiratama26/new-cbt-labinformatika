@@ -71,11 +71,15 @@
                         @foreach($sessions as $session)
                         <tr class="hover:bg-gray-50/50 transition-colors {{ $session->attempt_number > 1 ? 'bg-[#e8eaf5]/30' : '' }}">
                             <td class="py-4 px-4 text-gray-500">{{ $first ? $loop->parent->iteration : '' }}</td>
-                            <td class="py-4 px-6 font-mono text-gray-600">{{ $session->user->username }}</td>
+                            <td class="py-4 px-6 font-mono text-gray-600">{{ $session->user->username ?? 'Dihapus' }}</td>
                             <td class="py-4 px-6 font-medium text-gray-900">
+                                @if($session->user)
                                 <a href="{{ route('admin.exams.student_report', [$exam, $session->user]) }}" class="hover:text-primary transition-colors">
                                     {{ $session->user->name }}
                                 </a>
+                                @else
+                                <span class="text-gray-400 italic">Mahasiswa dihapus</span>
+                                @endif
                                 @if($first && $count > 1)
                                     <span class="ml-2 text-xs text-gray-500">({{ $count }}x)</span>
                                 @endif

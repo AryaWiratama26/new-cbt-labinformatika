@@ -96,28 +96,28 @@
                 <div class="text-center">
                     <div class="text-2xl font-bold text-red-500">{{ $scoreDistribution['below50'] }}</div>
                     <div class="h-2 w-full bg-red-100 rounded-full mt-1 overflow-hidden">
-                        <div class="h-full bg-red-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['below50'] / max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
+                        <div class="h-full bg-red-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['below50'] / max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">&lt; 50</p>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-orange-500">{{ $scoreDistribution['50to70'] }}</div>
+                    <div class="text-2xl font-bold text-orange-500">{{ $scoreDistribution['50to69'] }}</div>
                     <div class="h-2 w-full bg-orange-100 rounded-full mt-1 overflow-hidden">
-                        <div class="h-full bg-orange-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['50to70'] / max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
+                        <div class="h-full bg-orange-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['50to69'] / max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">50-70</p>
                 </div>
                 <div class="text-center">
                     <div class="text-2xl font-bold text-yellow-500">{{ $scoreDistribution['70to85'] }}</div>
                     <div class="h-2 w-full bg-yellow-100 rounded-full mt-1 overflow-hidden">
-                        <div class="h-full bg-yellow-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['70to85'] / max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
+                        <div class="h-full bg-yellow-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['70to85'] / max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">70-85</p>
                 </div>
                 <div class="text-center">
                     <div class="text-2xl font-bold text-green-500">{{ $scoreDistribution['above85'] }}</div>
                     <div class="h-2 w-full bg-green-100 rounded-full mt-1 overflow-hidden">
-                        <div class="h-full bg-green-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['above85'] / max($scoreDistribution['below50'], $scoreDistribution['50to70'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
+                        <div class="h-full bg-green-500 rounded-full" style="width: {{ max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85']) > 0 ? ($scoreDistribution['above85'] / max($scoreDistribution['below50'], $scoreDistribution['50to69'], $scoreDistribution['70to85'], $scoreDistribution['above85'], 1)) * 100 : 0 }}%"></div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">&gt; 85</p>
                 </div>
@@ -150,7 +150,7 @@
                             <p class="text-xs text-gray-500">{{ $session->exam->title ?? '-' }}</p>
                             <p class="text-xs text-gray-400">{{ $session->finished_at->diffForHumans() }}</p>
                         </div>
-                        <span class="ml-auto font-bold text-sm {{ ($session->score ?? 0) >= 70 ? 'text-green-600' : 'text-red-500' }}">{{ $session->score ?? 0 }}</span>
+                        <span class="ml-auto font-bold text-sm {{ ($session->score ?? 0) >= ($session->exam->passing_grade ?? 70) ? 'text-green-600' : 'text-red-500' }}">{{ $session->score ?? 0 }}</span>
                     </div>
                 @empty
                     <p class="text-sm text-gray-500 text-center py-8">Belum ada aktivitas</p>

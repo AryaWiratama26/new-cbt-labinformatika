@@ -1,0 +1,19 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - img "Pelita Bangsa" [ref=e4]
+    - img "Aslab" [ref=e6]
+  - generic [ref=e10]:
+    - generic [ref=e12]: 
+    - heading "403" [level=1] [ref=e13]
+    - heading "Forbidden" [level=2] [ref=e14]
+    - paragraph [ref=e15]: Akses ditolak. Anda tidak memiliki izin untuk melihat halaman ini.
+    - generic [ref=e16]:
+      - link " Kembali" [ref=e17] [cursor=pointer]:
+        - /url: http://localhost:8000/admin/dashboard
+        - generic [ref=e18]: 
+        - text: Kembali
+      - link " Beranda Utama" [ref=e19] [cursor=pointer]:
+        - /url: http://localhost:8000
+        - generic [ref=e20]: 
+        - text: Beranda Utama
+  - generic [ref=e21]: © 2026 CBT Praktikum Universitas Pelita Bangsa.

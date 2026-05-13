@@ -57,6 +57,12 @@ class ModuleController extends Controller
 
     public function destroy(Course $course, Module $module)
     {
+        // BUG #04 fix: Cegah hapus modul yang masih dipakai ujian aktif
+        if ($module->exams()->exists()) {
+            return redirect()->route('admin.courses.modules.index', $course)
+                ->with('error', 'Modul tidak bisa dihapus karena masih digunakan oleh ujian.');
+        }
+
         // Delete all question images
         foreach ($module->questions as $question) {
             if ($question->image) {
@@ -127,6 +133,9 @@ class ModuleController extends Controller
         if (substr($contents, 0, 3) === "\xEF\xBB\xBF") {
             $contents = substr($contents, 3);
         }
+        // NEW-05 fix: normalize line endings before splitting
+        $contents = str_replace("\r\n", "\n", $contents);
+        $contents = str_replace("\r", "\n", $contents);
         $data = array_map('str_getcsv', explode("\n", $contents));
 
         $header = array_shift($data);
@@ -271,13 +280,32 @@ class ModuleController extends Controller
 
         $question->update($data);
 
-        $question->options()->delete();
+        // NEW-04 fix: Update options IN-PLACE instead of delete+recreate.
+        // Deleting options would cascade-delete all student answers referencing them.
         $correctIdx = (int) $request->correct_option;
-        foreach ($request->options as $index => $optionContent) {
-            $question->options()->create([
-                'content'    => $optionContent,
-                'is_correct' => ($index === $correctIdx),
-            ]);
+        $existingOptions = $question->options()->orderBy('id')->get();
+        $newOptions = collect($request->options)->values();
+
+        foreach ($newOptions as $index => $optionContent) {
+            if (isset($existingOptions[$index])) {
+                // Update existing option — preserves the ID and FK references
+                $existingOptions[$index]->update([
+                    'content'    => $optionContent,
+                    'is_correct' => ((int)$index === $correctIdx),
+                ]);
+            } else {
+                // Create new option if more options than before
+                $question->options()->create([
+                    'content'    => $optionContent,
+                    'is_correct' => ((int)$index === $correctIdx),
+                ]);
+            }
+        }
+
+        // Remove excess old options (if new set has fewer than old)
+        if ($existingOptions->count() > $newOptions->count()) {
+            $keepIds = $existingOptions->take($newOptions->count())->pluck('id');
+            $question->options()->whereNotIn('id', $keepIds)->delete();
         }
 
         return redirect()->route('admin.courses.modules.show', [$course, $module])

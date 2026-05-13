@@ -1,0 +1,149 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/dashboard
+        - link "Mata Kuliah" [ref=e11] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+        - link "Ujian" [ref=e12] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+        - link "Mahasiswa" [ref=e13] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Administrator
+        - paragraph [ref=e16]: admin
+      - generic [ref=e18]: 
+      - button "" [ref=e20]:
+        - generic [ref=e21]: 
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "Admin Dashboard" [level=2] [ref=e26]
+          - paragraph [ref=e27]: Ringkasan aktivitas CBT Universitas Pelita Bangsa
+        - paragraph [ref=e29]: Wednesday, 13 May 2026
+      - generic [ref=e30]:
+        - link " Mahasiswa 1" [ref=e31] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/students
+          - generic [ref=e32]:
+            - generic [ref=e34]: 
+            - generic [ref=e35]:
+              - paragraph [ref=e36]: Mahasiswa
+              - paragraph [ref=e37]: "1"
+        - link " Mata Kuliah 1" [ref=e38] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/courses
+          - generic [ref=e39]:
+            - generic [ref=e41]: 
+            - generic [ref=e42]:
+              - paragraph [ref=e43]: Mata Kuliah
+              - paragraph [ref=e44]: "1"
+        - link " Total Kelas 1" [ref=e45] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/classrooms
+          - generic [ref=e46]:
+            - generic [ref=e48]: 
+            - generic [ref=e49]:
+              - paragraph [ref=e50]: Total Kelas
+              - paragraph [ref=e51]: "1"
+        - link " Total Ujian 1" [ref=e52] [cursor=pointer]:
+          - /url: http://localhost:8000/admin/exams
+          - generic [ref=e53]:
+            - generic [ref=e55]: 
+            - generic [ref=e56]:
+              - paragraph [ref=e57]: Total Ujian
+              - paragraph [ref=e58]: "1"
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - paragraph [ref=e61]: Ujian Hari Ini
+          - paragraph [ref=e62]: "1"
+        - generic [ref=e63]:
+          - paragraph [ref=e64]: Sedang Berlangsung
+          - paragraph [ref=e65]: "1"
+        - generic [ref=e66]:
+          - paragraph [ref=e67]: Rata-rata Nilai
+          - paragraph [ref=e68]: "-"
+        - generic [ref=e69]:
+          - paragraph [ref=e70]: Partisipasi
+          - paragraph [ref=e71]: 0%
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - heading "Distribusi Nilai" [level=3] [ref=e74]
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - generic [ref=e77]: "0"
+              - paragraph [ref=e79]: < 50
+            - generic [ref=e80]:
+              - generic [ref=e81]: "0"
+              - paragraph [ref=e83]: 50-70
+            - generic [ref=e84]:
+              - generic [ref=e85]: "0"
+              - paragraph [ref=e87]: 70-85
+            - generic [ref=e88]:
+              - generic [ref=e89]: "0"
+              - paragraph [ref=e91]: "> 85"
+          - heading "Top 5 Mahasiswa (Rata-rata Nilai)" [level=3] [ref=e92]
+          - paragraph [ref=e94]: Belum ada data nilai
+        - generic [ref=e95]:
+          - heading "Aktivitas Terakhir" [level=3] [ref=e96]
+          - paragraph [ref=e98]: Belum ada aktivitas
+      - generic [ref=e99]:
+        - generic [ref=e100]:
+          - generic [ref=e101]:
+            - heading "Import Data Mahasiswa" [level=3] [ref=e102]
+            - link " Template CSV" [ref=e103] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/template/students
+              - generic [ref=e104]: 
+              - text: Template CSV
+          - paragraph [ref=e105]:
+            - text: Unggah file CSV dengan format
+            - code [ref=e106]: NIM, Nama, Kelas
+            - text: .
+          - generic [ref=e107]:
+            - generic [ref=e108]:
+              - generic [ref=e109]: 
+              - button "Choose File" [ref=e110] [cursor=pointer]
+            - button " Import Sekarang" [ref=e111]:
+              - generic [ref=e112]: 
+              - text: Import Sekarang
+        - generic [ref=e113]:
+          - heading "Akses Cepat" [level=3] [ref=e114]
+          - paragraph [ref=e115]: Jalan pintas ke modul utama sistem.
+          - generic [ref=e116]:
+            - link " Manajemen Ujian Buat ujian & kelola bank soal " [ref=e117] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/exams
+              - generic [ref=e118]:
+                - generic [ref=e120]: 
+                - generic [ref=e121]:
+                  - paragraph [ref=e122]: Manajemen Ujian
+                  - paragraph [ref=e123]: Buat ujian & kelola bank soal
+              - generic [ref=e124]: 
+            - link " Mata Kuliah Daftar & modul matkul " [ref=e125] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/courses
+              - generic [ref=e126]:
+                - generic [ref=e128]: 
+                - generic [ref=e129]:
+                  - paragraph [ref=e130]: Mata Kuliah
+                  - paragraph [ref=e131]: Daftar & modul matkul
+              - generic [ref=e132]: 
+            - link " Manajemen Mahasiswa Edit, hapus, pindahkan kelas " [ref=e133] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/students
+              - generic [ref=e134]:
+                - generic [ref=e136]: 
+                - generic [ref=e137]:
+                  - paragraph [ref=e138]: Manajemen Mahasiswa
+                  - paragraph [ref=e139]: Edit, hapus, pindahkan kelas
+              - generic [ref=e140]: 
+            - link " Kelas CRUD kelas & tahun ajaran " [ref=e141] [cursor=pointer]:
+              - /url: http://localhost:8000/admin/classrooms
+              - generic [ref=e142]:
+                - generic [ref=e144]: 
+                - generic [ref=e145]:
+                  - paragraph [ref=e146]: Kelas
+                  - paragraph [ref=e147]: CRUD kelas & tahun ajaran
+              - generic [ref=e148]: 
+  - contentinfo [ref=e149]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.

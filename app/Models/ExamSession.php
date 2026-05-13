@@ -11,6 +11,7 @@ class ExamSession extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
+        'score' => 'decimal:2',
     ];
 
     public function user()

@@ -24,3 +24,7 @@ Homestead.yaml
 Thumbs.db
 tests/e2e/.auth/
 tests/e2e/test-results/
+save()
+bugreport.md
+/test-results
+

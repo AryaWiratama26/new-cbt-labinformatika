@@ -99,7 +99,7 @@
                         <td class="py-4 px-6 text-sm text-gray-500">
                             {{ $student->finished_at ? $student->finished_at->format('H:i:s') : '-' }}
                         </td>
-                        <td class="py-4 px-6 text-right font-bold text-sm {{ $student->score !== null && $student->score >= 70 ? 'text-green-600' : ($student->score !== null ? 'text-red-500' : 'text-gray-400') }}">
+                        <td class="py-4 px-6 text-right font-bold text-sm {{ $student->score !== null && $student->score >= $exam->passing_grade ? 'text-green-600' : ($student->score !== null ? 'text-red-500' : 'text-gray-400') }}">
                             {{ $student->score !== null ? $student->score : '-' }}
                         </td>
                     </tr>

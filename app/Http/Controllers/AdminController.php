@@ -29,10 +29,11 @@ class AdminController extends Controller
                 ->where('end_time', '>=', now())
                 ->count();
 
-            $avgScore = ExamSession::whereNotNull('score')->avg('score');
+            $avgScore = ExamSession::whereNotNull('score')->whereNotNull('user_id')->avg('score');
             
             // BUG #11 fix: hanya hitung 1 session per mahasiswa per ujian
             $totalSessions = ExamSession::whereNotNull('finished_at')
+                ->whereNotNull('user_id')
                 ->where('attempt_number', 1)
                 ->count();
 
@@ -43,12 +44,12 @@ class AdminController extends Controller
                 $participationRate = min(100, round(($totalSessions / $totalPossibleSessions) * 100, 1));
             }
 
-            // BUG #12 fix: gunakan range eksklusif-inklusive
+            // BUG #13 fix: konsisten boundaries — [0,50), [50,70), [70,85], (85,100]
             $scoreDistribution = [
-                'below50' => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
-                '50to70'  => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
-                '70to85'  => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
-                'above85' => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
+                'below50'  => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
+                '50to69'   => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
+                '70to85'   => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
+                'above85'  => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
             ];
 
             $recentSessions = ExamSession::with(['user', 'exam'])
@@ -59,6 +60,7 @@ class AdminController extends Controller
 
             $topStudents = ExamSession::with('user')
                 ->whereNotNull('score')
+                ->whereNotNull('user_id')
                 ->selectRaw('user_id, AVG(score) as avg_score')
                 ->groupBy('user_id')
                 ->orderByDesc('avg_score')
@@ -123,6 +125,9 @@ class AdminController extends Controller
             'password' => Hash::make($request->nim),
         ]);
 
+        // BUG #11 fix: invalidate dashboard cache setelah perubahan data
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+
         return redirect()->route('admin.students.index')->with('success', 'Mahasiswa berhasil ditambahkan.');
     }
 
@@ -166,8 +171,18 @@ class AdminController extends Controller
         if ($user->role !== 'mahasiswa') {
             abort(403, 'Hanya mahasiswa yang dapat dihapus melalui menu ini.');
         }
+
+        // NEW-03 fix: Warn if student has exam data (user_id will be set to NULL via nullOnDelete)
+        $hasExamData = ExamSession::where('user_id', $user->id)->exists();
+        
         $user->delete();
-        return redirect()->route('admin.students.index')->with('success', 'Mahasiswa berhasil dihapus.');
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+
+        $message = 'Mahasiswa berhasil dihapus.';
+        if ($hasExamData) {
+            $message .= ' Data ujian (sesi & nilai) tetap tersimpan untuk keperluan arsip.';
+        }
+        return redirect()->route('admin.students.index')->with('success', $message);
     }
 
     public function bulkDeleteStudents(Request $request)
@@ -178,6 +193,7 @@ class AdminController extends Controller
         }
         // BUG #5 fix: filter ketat hanya role mahasiswa, jangan sampai admin ikut terhapus
         $deleted = User::whereIn('id', $ids)->where('role', 'mahasiswa')->delete();
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->back()->with('success', $deleted . ' mahasiswa berhasil dihapus.');
     }
 
@@ -272,11 +288,12 @@ class AdminController extends Controller
             'student_ids.*' => 'exists:users,id',
         ]);
 
-        User::whereIn('id', $request->student_ids)
+        // BUG #17 fix: gunakan return value update() untuk jumlah yang benar-benar pindah
+        $moved = User::whereIn('id', $request->student_ids)
             ->where('classroom_id', $request->from_classroom_id)
             ->update(['classroom_id' => $request->to_classroom_id]);
 
-        return redirect()->route('admin.classrooms')->with('success', count($request->student_ids) . ' mahasiswa berhasil dipindahkan.');
+        return redirect()->route('admin.classrooms')->with('success', $moved . ' mahasiswa berhasil dipindahkan.');
     }
 
     public function downloadStudentTemplate()
@@ -336,6 +353,9 @@ class AdminController extends Controller
         if (substr($contents, 0, 3) === "\xEF\xBB\xBF") {
             $contents = substr($contents, 3);
         }
+        // NEW-05 fix: normalize line endings before splitting
+        $contents = str_replace("\r\n", "\n", $contents);
+        $contents = str_replace("\r", "\n", $contents);
         $data = array_map('str_getcsv', explode("\n", $contents));
 
         $header = array_shift($data);
@@ -398,6 +418,9 @@ class AdminController extends Controller
             $message .= " " . count($errorRows) . " error: " . implode('; ', array_slice($errorRows, 0, 3));
         }
 
+        // BUG #11 fix: invalidate cache setelah import data
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+
         return redirect()->back()->with('success', $message);
     }
 
@@ -453,7 +476,9 @@ class AdminController extends Controller
         // bukan sesudah — agar $exam->course tersedia di dalam callback
         $exams->load('course');
 
-        $filename = 'rekap_kelas_' . str_replace(['"', "\n", "\r"], '', $classroom->name) . '.csv';
+        // BUG #10 fix: sanitize filename agar aman dari header injection
+        $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $classroom->name);
+        $filename = 'rekap_kelas_' . $safeName . '.csv';
 
         $headers = [
             'Content-type'        => 'text/csv',
@@ -486,13 +511,19 @@ class AdminController extends Controller
 
                 foreach ($exams as $exam) {
                     $key = $student->id . '_' . $exam->id;
-                    $session = $sessions->get($key);
-                    if ($session && $session->first()->finished_at) {
-                        $score = $session->last()->score ?? '-';
-                        $row[] = $score;
-                        if (is_numeric($score)) {
-                            $totalScore += $score;
-                            $counted++;
+                    $sessionGroup = $sessions->get($key);
+                    if ($sessionGroup) {
+                        // NEW-06 fix: filter hanya session yang sudah selesai, ambil yang terakhir
+                        $finishedSessions = $sessionGroup->filter(fn($s) => $s->finished_at !== null);
+                        if ($finishedSessions->isNotEmpty()) {
+                            $score = $finishedSessions->last()->score ?? '-';
+                            $row[] = $score;
+                            if (is_numeric($score)) {
+                                $totalScore += $score;
+                                $counted++;
+                            }
+                        } else {
+                            $row[] = '-';
                         }
                     } else {
                         $row[] = '-';

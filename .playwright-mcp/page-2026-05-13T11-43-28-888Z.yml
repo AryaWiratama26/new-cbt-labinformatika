@@ -1,0 +1,65 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: Test Student
+        - paragraph [ref=e11]: mahasiswa
+      - generic [ref=e13]: 
+      - button "" [ref=e15]:
+        - generic [ref=e16]: 
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - link "" [ref=e20] [cursor=pointer]:
+          - /url: http://localhost:8000/student/dashboard
+          - generic [ref=e21]: 
+        - generic [ref=e22]:
+          - heading "Remedial" [level=2] [ref=e23]
+          - paragraph [ref=e24]: Baca detail dan peraturan sebelum memulai.
+      - generic [ref=e25]:
+        - generic [ref=e26]: 
+        - generic [ref=e27]:
+          - strong [ref=e28]: "Remedial:"
+          - text: Nilai Anda sebelumnya (
+          - strong [ref=e29]: "0.00"
+          - text: ) di bawah nilai minimal
+          - strong [ref=e30]: "70"
+          - text: . Anda masih memiliki kesempatan remedial (Percobaan 2 dari 10).
+      - generic [ref=e31]:
+        - generic [ref=e33]: 
+        - heading "E2E Offline Test" [level=3] [ref=e34]
+        - paragraph [ref=e35]: Pemrograman Web
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Tanggal
+            - text: 13 May 2026
+          - generic [ref=e39]:
+            - generic [ref=e40]: Waktu
+            - text: 17:34 WIB
+          - generic [ref=e41]:
+            - generic [ref=e42]: Durasi
+            - text: 120 Menit
+          - generic [ref=e43]:
+            - generic [ref=e44]: Total Soal
+            - text: 1 Butir
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - generic [ref=e47]: Nilai Minimal
+            - text: "70"
+          - generic [ref=e48]:
+            - generic [ref=e49]: Maksimal Percobaan
+            - text: 10x
+          - generic [ref=e50]:
+            - generic [ref=e51]: Deteksi Tab
+            - text: Aktif (5x)
+        - generic [ref=e52]:
+          - button " Mulai Remedial (Percobaan 2)" [ref=e53]:
+            - generic [ref=e54]: 
+            - text: Mulai Remedial (Percobaan 2)
+          - paragraph [ref=e55]: Waktu akan mulai berjalan saat Anda mengklik tombol di atas.
+  - contentinfo [ref=e56]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.

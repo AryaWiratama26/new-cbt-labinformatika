@@ -49,6 +49,7 @@ class ExamController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         Exam::create($validated);
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->route('admin.exams.index')->with('success', 'Jadwal ujian berhasil dibuat.');
     }
 
@@ -79,14 +80,23 @@ class ExamController extends Controller
         $module = \App\Models\Module::findOrFail($validated['module_id']);
         $validated['course_id'] = $module->course_id;
         $validated['is_active'] = $request->boolean('is_active');
+        // BUG #14 fix: checkbox unchecked tidak mengirim value, harus di-handle eksplisit
+        $validated['require_fullscreen'] = $request->boolean('require_fullscreen');
+        $validated['max_tab_switches'] = $request->input('max_tab_switches') ?: null;
 
         $exam->update($validated);
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->route('admin.exams.index')->with('success', 'Jadwal ujian berhasil diperbarui.');
     }
 
     public function destroy(Exam $exam)
     {
+        // BUG #3 fix: Cegah hapus ujian yang sudah dikerjakan mahasiswa
+        if ($exam->examSessions()->whereNotNull('finished_at')->exists()) {
+            return redirect()->route('admin.exams.index')->with('error', 'Ujian tidak bisa dihapus karena sudah ada mahasiswa yang mengerjakan.');
+        }
         $exam->delete();
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->route('admin.exams.index')->with('success', 'Ujian berhasil dihapus.');
     }
 
@@ -123,12 +133,14 @@ class ExamController extends Controller
             ->orderBy('name')
             ->get();
 
-        // BUG #13 fix: 
+        // BUG #02 fix: gunakan groupBy + pick latest session secara eksplisit
+        // keyBy sebelumnya meng-overwrite silently, behavior bergantung sort order
         $sessions = ExamSession::where('exam_id', $exam->id)
             ->whereIn('user_id', $students->pluck('id'))
-            ->orderBy('attempt_number', 'asc')
+            ->orderByDesc('attempt_number')
             ->get()
-            ->keyBy('user_id');
+            ->groupBy('user_id')
+            ->map(fn($s) => $s->first());
 
         $participants = $students->map(function ($student) use ($sessions) {
             $session = $sessions->get($student->id);
@@ -224,7 +236,9 @@ class ExamController extends Controller
             'exam', 'students', 'avgScore', 'passed', 'failed', 'totalStudents', 'highest', 'lowest'
         ));
 
-        $filename = 'Laporan_Nilai_' . str_replace('/', '-', $exam->title) . '.pdf';
+        // NEW-07 fix: sanitize filename to prevent header injection
+        $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $exam->title);
+        $filename = 'Laporan_Nilai_' . $safeName . '.pdf';
         return $pdf->download($filename);
     }
 
@@ -271,8 +285,8 @@ class ExamController extends Controller
 
                     fputcsv($file, array_map($sanitize, [
                         $no,
-                        $session->user->username,
-                        $session->user->name,
+                        $session->user->username ?? 'Dihapus',
+                        $session->user->name ?? 'Mahasiswa Dihapus',
                         $session->attempt_number,
                         $waktu,
                         $session->score ?? '-',

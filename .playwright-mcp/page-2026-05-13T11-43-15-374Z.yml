@@ -1,0 +1,41 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Logo Universitas" [ref=e4]
+      - generic [ref=e5]:
+        - heading "CBT Praktikum" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Universitas Pelita Bangsa
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: Test Student
+        - paragraph [ref=e11]: mahasiswa
+      - generic [ref=e13]: 
+      - button "" [ref=e15]:
+        - generic [ref=e16]: 
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Dashboard Mahasiswa" [level=2] [ref=e20]
+        - paragraph [ref=e21]: "Selamat datang, Test Student (Kelas: IF-1)"
+      - heading "Jadwal Ujian Anda" [level=3] [ref=e22]
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e27]: 
+          - generic [ref=e28]: Remedial
+        - heading "E2E Offline Test" [level=4] [ref=e29]
+        - paragraph [ref=e30]: Pemrograman Web
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e33]: 
+            - generic [ref=e34]: 13 May 2026
+          - generic [ref=e35]:
+            - generic [ref=e36]: 
+            - generic [ref=e37]: 17:34 - 21:34 WIB
+          - generic [ref=e38]:
+            - generic [ref=e39]: 
+            - generic [ref=e40]: 120 Menit
+        - generic [ref=e41]:
+          - generic [ref=e42]: "Nilai: 0.00 (Percobaan 1/10)"
+          - link "Ikuti Remedial" [ref=e43] [cursor=pointer]:
+            - /url: http://localhost:8000/student/exams/19
+  - contentinfo [ref=e44]: © 2026 Laboratorium Informatika Universitas Pelita Bangsa.
