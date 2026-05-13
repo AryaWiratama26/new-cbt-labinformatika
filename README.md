@@ -68,7 +68,7 @@
 
 ```bash
 # 1. Clone repository
-git clone <repository-url>
+git clone https://github.com/AryaWiratama26/new-cbt-labinformatika
 cd new-cbt
 
 # 2. Install dependencies
@@ -169,6 +169,8 @@ npx playwright show-report tests/e2e/playwright-report
 ## Pengembang
 
 Dikembangkan oleh **Laboratorium Informatika** — **Universitas Pelita Bangsa**.
+- Arya Wiratama
+- Farel Aryaduta Daniswara
 
 ---
 
