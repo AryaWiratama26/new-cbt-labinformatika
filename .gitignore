@@ -28,3 +28,4 @@ save()
 bugreport.md
 /test-results
 
+.playwright-mcp/
