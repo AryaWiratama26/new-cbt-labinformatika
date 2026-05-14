@@ -13,6 +13,10 @@ class Exam extends Model
         'end_time' => 'datetime',
         'is_active' => 'boolean',
         'require_fullscreen' => 'boolean',
+        'duration_minutes' => 'integer',
+        'passing_grade' => 'integer',
+        'max_attempts' => 'integer',
+        'max_tab_switches' => 'integer',
     ];
 
     public function course()
