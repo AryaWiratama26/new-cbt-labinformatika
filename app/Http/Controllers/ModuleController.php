@@ -57,13 +57,12 @@ class ModuleController extends Controller
 
     public function destroy(Course $course, Module $module)
     {
-        // BUG #04 fix: Cegah hapus modul yang masih dipakai ujian aktif
-        if ($module->exams()->exists()) {
-            return redirect()->route('admin.courses.modules.index', $course)
-                ->with('error', 'Modul tidak bisa dihapus karena masih digunakan oleh ujian.');
+        foreach ($module->exams as $exam) {
+            Question::where('module_id', $module->id)
+                ->whereNull('exam_id')
+                ->update(['exam_id' => $exam->id]);
         }
 
-        // Delete all question images
         foreach ($module->questions as $question) {
             if ($question->image) {
                 $path = ltrim($question->image, '/');
