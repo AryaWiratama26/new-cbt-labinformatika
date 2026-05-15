@@ -429,7 +429,7 @@ class ModuleController extends Controller
         $section->addText('- "Kunci:" diisi dengan huruf A, B, C, atau D.');
         $section->addText('- "Kategori:" bisa Mudah, Sedang, atau Sulit (opsional — boleh dihapus).');
         $section->addText('- "Pembahasan:" diisi penjelasan jawaban (opsional — boleh dihapus).');
-        $section->addText('- Lihat Soal 4 sebagai contoh format minimal (tanpa Kategori & Pembahasan).');
+        $section->addText('- Lihat Soal 4 sebagai contoh format minimal (tanpa Kategori dan Pembahasan).');
         $section->addText('- Gambar bisa disisipkan langsung di dalam soal.');
 
         $filename = 'template_soal.docx';
