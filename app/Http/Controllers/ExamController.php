@@ -91,10 +91,6 @@ class ExamController extends Controller
 
     public function destroy(Exam $exam)
     {
-        // BUG #3 fix: Cegah hapus ujian yang sudah dikerjakan mahasiswa
-        if ($exam->examSessions()->whereNotNull('finished_at')->exists()) {
-            return redirect()->route('admin.exams.index')->with('error', 'Ujian tidak bisa dihapus karena sudah ada mahasiswa yang mengerjakan.');
-        }
         $exam->delete();
         \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->route('admin.exams.index')->with('success', 'Ujian berhasil dihapus.');
