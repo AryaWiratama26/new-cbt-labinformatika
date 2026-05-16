@@ -273,7 +273,7 @@
         const examId = {{ $exam->id }};
         const sessionId = {{ $session->id }};
         const remainingSeconds = {{ max(0, now()->diffInSeconds($endTime)) }};
-        const localStartTime = performance.now();
+        const localStartTime = Date.now();
 
         const timerElement = document.getElementById('countdown-timer');
         const form = document.getElementById('exam-form');
@@ -459,7 +459,7 @@
 
         // ── Timer ──
         const x = setInterval(function () {
-            const elapsedSeconds = Math.floor((performance.now() - localStartTime) / 1000);
+            const elapsedSeconds = Math.floor((Date.now() - localStartTime) / 1000);
             const distance = remainingSeconds - elapsedSeconds;
 
             if (distance <= 0) {
