@@ -15,8 +15,27 @@ class ExamController extends Controller
 {
     public function index()
     {
-        $exams = Exam::with(['course', 'classroom'])->latest()->get();
-        return view('admin.exams.index', compact('exams'));
+        $courses = Course::orderBy('name')->get();
+        $classrooms = Classroom::orderBy('name')->get();
+
+        $query = Exam::with(['course', 'classroom']);
+
+        $search = request('search');
+        $courseId = request('course_id');
+        $classroomId = request('classroom_id');
+        $status = request('status');
+
+        $query->when($search, fn($q) => $q->where('title', 'like', '%' . $search . '%'))
+            ->when($courseId, fn($q) => $q->where('course_id', $courseId))
+            ->when($classroomId, fn($q) => $q->where('classroom_id', $classroomId))
+            ->when($status === 'active', fn($q) => $q->where('is_active', true)->where('end_time', '>', now()))
+            ->when($status === 'inactive', fn($q) => $q->where('is_active', false))
+            ->when($status === 'upcoming', fn($q) => $q->where('start_time', '>', now()))
+            ->when($status === 'finished', fn($q) => $q->where('end_time', '<=', now()));
+
+        $exams = $query->latest()->paginate(20)->appends(request()->except('page'));
+
+        return view('admin.exams.index', compact('exams', 'courses', 'classrooms'));
     }
 
     public function create()

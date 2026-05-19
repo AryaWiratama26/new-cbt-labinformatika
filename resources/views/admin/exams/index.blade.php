@@ -27,6 +27,49 @@
     @endif
 
     <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+        <form method="GET" action="{{ route('admin.exams.index') }}" class="p-5 border-b border-gray-100">
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex-1 min-w-[200px]">
+                    <div class="relative">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari judul ujian..."
+                            class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                    </div>
+                </div>
+                <select name="course_id" class="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                    <option value="">Semua Matkul</option>
+                    @foreach($courses as $course)
+                        <option value="{{ $course->id }}" {{ request('course_id') == $course->id ? 'selected' : '' }}>
+                            {{ $course->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <select name="classroom_id" class="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                    <option value="">Semua Kelas</option>
+                    @foreach($classrooms as $classroom)
+                        <option value="{{ $classroom->id }}" {{ request('classroom_id') == $classroom->id ? 'selected' : '' }}>
+                            {{ $classroom->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <select name="status" class="px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                    <option value="">Semua Status</option>
+                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Aktif</option>
+                    <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Nonaktif</option>
+                    <option value="upcoming" {{ request('status') === 'upcoming' ? 'selected' : '' }}>Belum Mulai</option>
+                    <option value="finished" {{ request('status') === 'finished' ? 'selected' : '' }}>Selesai</option>
+                </select>
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors">
+                        <i class="ph ph-faders"></i> Filter
+                    </button>
+                    <a href="{{ route('admin.exams.index') }}" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                        <i class="ph ph-x"></i> Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse min-w-[800px]">
                 <thead>
@@ -54,8 +97,14 @@
                             <p><span class="font-medium">Selesai:</span> {{ $exam->end_time->format('d M Y, H:i') }}</p>
                         </td>
                         <td class="py-4 px-6">
-                            @if($exam->is_active)
-                                <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">Aktif</span>
+                            @if($exam->is_active && $exam->end_time > now())
+                                @if($exam->start_time <= now())
+                                    <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">Sedang Berjalan</span>
+                                @else
+                                    <span class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">Belum Mulai</span>
+                                @endif
+                            @elseif($exam->end_time <= now())
+                                <span class="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full border border-gray-200">Selesai</span>
                             @else
                                 <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200">Nonaktif</span>
                             @endif
@@ -90,14 +139,53 @@
                             <div class="inline-flex h-16 w-16 bg-gray-50 rounded-full items-center justify-center text-gray-400 mb-4">
                                 <i class="ph ph-files text-3xl"></i>
                             </div>
-                            <h4 class="text-lg font-bold text-gray-900 mb-1">Belum ada ujian</h4>
-                            <p class="text-sm">Silakan buat ujian baru terlebih dahulu.</p>
+                            <h4 class="text-lg font-bold text-gray-900 mb-1">{{ (request('search') || request('course_id') || request('classroom_id') || request('status')) ? 'Tidak ada ujian ditemukan' : 'Belum ada ujian' }}</h4>
+                            <p class="text-sm">{{ (request('search') || request('course_id') || request('classroom_id') || request('status')) ? 'Coba ubah filter pencarian Anda' : 'Silakan buat ujian baru terlebih dahulu.' }}</p>
                         </td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+
+        @if($exams->hasPages())
+            <div class="px-6 py-4 border-t border-gray-100">
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <p class="text-sm text-gray-500">
+                        Menampilkan {{ $exams->firstItem() }}–{{ $exams->lastItem() }} dari {{ $exams->total() }} ujian
+                    </p>
+                    <div class="flex items-center gap-1">
+                        @if($exams->onFirstPage())
+                            <span class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed">
+                                <i class="ph ph-caret-left"></i>
+                            </span>
+                        @else
+                            <a href="{{ $exams->previousPageUrl() }}" class="px-3 py-1.5 text-sm rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors">
+                                <i class="ph ph-caret-left"></i>
+                            </a>
+                        @endif
+
+                        @foreach($exams->getUrlRange(max(1, $exams->currentPage() - 2), min($exams->lastPage(), $exams->currentPage() + 2)) as $page => $url)
+                            @if($page == $exams->currentPage())
+                                <span class="px-3 py-1.5 text-sm rounded-lg bg-primary text-white font-semibold">{{ $page }}</span>
+                            @else
+                                <a href="{{ $url }}" class="px-3 py-1.5 text-sm rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors">{{ $page }}</a>
+                            @endif
+                        @endforeach
+
+                        @if($exams->hasMorePages())
+                            <a href="{{ $exams->nextPageUrl() }}" class="px-3 py-1.5 text-sm rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors">
+                                <i class="ph ph-caret-right"></i>
+                            </a>
+                        @else
+                            <span class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed">
+                                <i class="ph ph-caret-right"></i>
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 @endsection
