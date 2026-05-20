@@ -17,6 +17,7 @@ class ExamController extends Controller
     {
         $courses = Course::orderBy('name')->get();
         $classrooms = Classroom::orderBy('name')->get();
+        $group = request('group');
 
         $query = Exam::with(['course', 'classroom']);
 
@@ -33,9 +34,14 @@ class ExamController extends Controller
             ->when($status === 'upcoming', fn($q) => $q->where('start_time', '>', now()))
             ->when($status === 'finished', fn($q) => $q->where('end_time', '<=', now()));
 
+        if ($group === 'course') {
+            $exams = $query->latest()->get()->groupBy(fn($e) => $e->course->name ?? 'Tanpa Matkul');
+            return view('admin.exams.index', compact('exams', 'courses', 'classrooms', 'group'));
+        }
+
         $exams = $query->latest()->paginate(20)->appends(request()->except('page'));
 
-        return view('admin.exams.index', compact('exams', 'courses', 'classrooms'));
+        return view('admin.exams.index', compact('exams', 'courses', 'classrooms', 'group'));
     }
 
     public function create()
@@ -115,13 +121,65 @@ class ExamController extends Controller
         return redirect()->route('admin.exams.index')->with('success', 'Ujian berhasil dihapus.');
     }
 
+    public function duplicate(Request $request, Exam $exam)
+    {
+        $validated = $request->validate([
+            'classrooms' => 'required|array|min:1',
+            'classrooms.*.classroom_id' => 'required|exists:classrooms,id',
+            'classrooms.*.start_time' => 'required|date',
+            'classrooms.*.end_time' => 'required|date',
+            'classrooms.*.duration_minutes' => 'required|integer|min:1',
+        ]);
+
+        $created = 0;
+        $errors = [];
+
+        foreach ($validated['classrooms'] as $item) {
+            try {
+                Exam::create([
+                    'title'             => $exam->title,
+                    'description'       => $exam->description,
+                    'course_id'         => $exam->course_id,
+                    'module_id'         => $exam->module_id,
+                    'classroom_id'      => $item['classroom_id'],
+                    'start_time'        => $item['start_time'],
+                    'end_time'          => $item['end_time'],
+                    'duration_minutes'  => $item['duration_minutes'],
+                    'is_active'         => $exam->is_active,
+                    'passing_grade'     => $exam->passing_grade,
+                    'max_attempts'      => $exam->max_attempts,
+                    'max_tab_switches'  => $exam->max_tab_switches,
+                    'require_fullscreen' => $exam->require_fullscreen,
+                ]);
+                $created++;
+            } catch (\Exception $e) {
+                $errors[] = "Gagal duplikat ke classroom ID {$item['classroom_id']}: {$e->getMessage()}";
+            }
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+
+        $msg = "Berhasil menduplikat ke {$created} kelas.";
+        if (!empty($errors)) {
+            if ($created === 0) {
+                return redirect()->route('admin.exams.show', $exam)->with('error', 'Gagal menduplikat ke semua kelas.')->with('duplicate_errors', $errors);
+            }
+            return redirect()->route('admin.exams.show', $exam)->with('success', $msg)->with('duplicate_errors', $errors);
+        }
+
+        return redirect()->route('admin.exams.index')->with('success', $msg);
+    }
     public function show(Exam $exam)
     {
         $exam->load('course', 'classroom', 'module');
 
         $questions = $exam->getQuestions();
 
-        return view('admin.exams.show', compact('exam', 'questions'));
+        $classrooms = Classroom::where('id', '!=', $exam->classroom_id)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.exams.show', compact('exam', 'questions', 'classrooms'));
     }
 
     public function results(Exam $exam)

@@ -69,6 +69,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/exams/{exam}/pdf', [\App\Http\Controllers\ExamController::class, 'exportPdf'])->name('admin.exams.pdf');
         Route::get('admin/exams/{exam}/results/csv', [\App\Http\Controllers\ExamController::class, 'resultsCsv'])->name('admin.exams.results.csv');
         Route::get('admin/exams/{exam}/student/{user}/report', [\App\Http\Controllers\ExamController::class, 'studentReport'])->name('admin.exams.student_report');
+        Route::post('admin/exams/{exam}/duplicate', [\App\Http\Controllers\ExamController::class, 'duplicate'])->name('admin.exams.duplicate');
 
         // Classroom recap
         Route::get('admin/classrooms/{classroom}/recap', [\App\Http\Controllers\AdminController::class, 'classroomRecap'])->name('admin.classrooms.recap');
