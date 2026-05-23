@@ -9,6 +9,10 @@ class ExamSession extends Model
     protected $fillable = ['user_id', 'exam_id', 'started_at', 'finished_at', 'score', 'attempt_number', 'tab_switches'];
 
     protected $casts = [
+        'user_id' => 'integer',
+        'exam_id' => 'integer',
+        'attempt_number' => 'integer',
+        'tab_switches' => 'integer',
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
         'score' => 'decimal:2',

@@ -32,6 +32,11 @@
                 <a href="{{ route('admin.exams.index') }}" class="hover:text-primary transition-colors">Ujian</a>
                 <a href="{{ route('admin.students.index') }}" class="hover:text-primary transition-colors">Mahasiswa</a>
             </div>
+            @elseif(Auth::user()->role === 'mahasiswa')
+            <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 mr-4">
+                <a href="{{ route('student.dashboard') }}" class="hover:text-primary transition-colors">Dashboard</a>
+                <a href="{{ route('student.history') }}" class="hover:text-primary transition-colors">Riwayat</a>
+            </div>
             @endif
 
             <div class="hidden md:block text-right border-l border-gray-200 pl-6">

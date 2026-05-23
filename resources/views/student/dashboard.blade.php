@@ -60,8 +60,13 @@
                 </div>
 
                 @if($exam->status === 'finished')
-                    <div class="w-full bg-gray-50 text-gray-700 py-3 rounded-xl font-medium text-center border border-gray-200">
-                        Nilai: {{ $exam->session->score ?? 0 }} (Percobaan {{ $exam->attempt_number }})
+                    <div class="space-y-2">
+                        <div class="w-full bg-gray-50 text-gray-700 py-3 rounded-xl font-medium text-center border border-gray-200">
+                            Nilai: {{ $exam->session->score ?? 0 }} (Percobaan {{ $exam->attempt_number }})
+                        </div>
+                        <a href="{{ route('student.history.review', $exam->session) }}" class="w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 py-2.5 rounded-xl font-medium transition-colors text-center border border-gray-200 text-sm">
+                            <i class="ph ph-eye text-base"></i> Lihat Detail
+                        </a>
                     </div>
                 @elseif($exam->status === 'remedial')
                     <div class="space-y-2">

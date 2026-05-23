@@ -77,6 +77,51 @@ class StudentController extends Controller
         return view('student.dashboard', compact('exams'));
     }
 
+    public function history()
+    {
+        $user = auth()->user();
+
+        $sessions = ExamSession::where('user_id', $user->id)
+            ->whereNotNull('finished_at')
+            ->with(['exam.course', 'exam.classroom'])
+            ->orderBy('finished_at', 'desc')
+            ->paginate(20);
+
+        return view('student.history.index', compact('sessions'));
+    }
+
+    public function reviewSession(ExamSession $examSession)
+    {
+        $user = auth()->user();
+
+        if ((int) $examSession->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $exam = $examSession->exam;
+
+        if (!$exam) {
+            return redirect()->route('student.history')->with('error', 'Data ujian tidak ditemukan.');
+        }
+
+        $questions = $exam->getQuestions();
+
+        $seed = $user->id . '_' . $exam->id . '_' . $examSession->attempt_number;
+        $questions = $questions->sortBy(fn($q) => crc32($seed . '_q_' . $q->id))->values();
+
+        foreach ($questions as $question) {
+            $options = $question->options->sortBy(fn($o) => crc32($seed . '_o_' . $question->id . '_' . $o->id))->values();
+            $question->setRelation('options', $options);
+        }
+
+        $answers = $examSession->answers()->with('option')->get()->keyBy('question_id');
+
+        $totalQuestions = $questions->count();
+        $correctCount = $answers->filter(fn($a) => $a->option && $a->option->is_correct)->count();
+
+        return view('student.history.review', compact('examSession', 'exam', 'questions', 'answers', 'correctCount', 'totalQuestions'));
+    }
+
     public function show(Exam $exam)
     {
         $user = auth()->user();
