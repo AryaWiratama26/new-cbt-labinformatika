@@ -21,6 +21,76 @@
     @endif
 
     @if($sessions->count() > 0)
+        <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 md:p-8 mb-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="ph ph-chart-bar text-primary"></i>
+                Grafik Nilai
+            </h3>
+            <div class="relative" style="height: 260px;">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+
+        @php
+            $chartLabels = [];
+            $chartScores = [];
+            $chartColors = [];
+            foreach ($sessions as $s) {
+                $title = mb_strlen($s->exam->title) > 22 ? mb_substr($s->exam->title, 0, 20) . '...' : $s->exam->title;
+                $chartLabels[] = $title;
+                $chartScores[] = (float) ($s->score ?? 0);
+                $pg = (int) ($s->exam->passing_grade ?? 70);
+                $chartColors[] = ($s->score ?? 0) >= $pg ? '#22c55e' : '#ef4444';
+            }
+        @endphp
+
+        @push('scripts')
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: {!! json_encode($chartLabels) !!},
+                    datasets: [{
+                        label: 'Nilai',
+                        data: {!! json_encode($chartScores) !!},
+                        backgroundColor: {!! json_encode($chartColors) !!},
+                        borderRadius: 6,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return 'Nilai: ' + ctx.parsed.y;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: '#f0f2f8' },
+                            ticks: { font: { size: 11 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        });
+        </script>
+        @endpush
+
         <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">

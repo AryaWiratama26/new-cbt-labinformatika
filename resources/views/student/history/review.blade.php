@@ -66,22 +66,79 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
-            <div class="flex items-center gap-2 text-sm text-gray-600">
-                <i class="ph ph-check-circle text-green-500 text-lg"></i>
-                Benar: <span class="font-bold text-gray-900">{{ $correctCount }}</span>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-gray-600">
-                <i class="ph ph-x-circle text-red-500 text-lg"></i>
-                Salah: <span class="font-bold text-gray-900">{{ $totalQuestions - $correctCount }}</span>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-gray-600">
-                <i class="ph ph-question text-gray-400 text-lg"></i>
-                Total: <span class="font-bold text-gray-900">{{ $totalQuestions }}</span>
-            </div>
-        </div>
-
         @if($questions->isNotEmpty())
+            @php
+                $unansweredCount = 0;
+                foreach ($questions as $q) {
+                    if (!$answers->has($q->id)) $unansweredCount++;
+                }
+                $answeredCount = $totalQuestions - $unansweredCount;
+                $wrongAnswered = $answeredCount - $correctCount;
+            @endphp
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="p-4 bg-gray-50 rounded-xl md:col-span-1">
+                    <div class="relative mx-auto" style="height: 180px; max-width: 180px;">
+                        <canvas id="resultChart"></canvas>
+                    </div>
+                </div>
+                <div class="md:col-span-2 flex flex-wrap gap-4 items-center p-4 bg-gray-50 rounded-xl">
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <span class="h-3 w-3 rounded-full bg-green-500"></span>
+                        Benar: <span class="font-bold text-gray-900">{{ $correctCount }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <span class="h-3 w-3 rounded-full bg-red-500"></span>
+                        Salah: <span class="font-bold text-gray-900">{{ $wrongAnswered }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <span class="h-3 w-3 rounded-full bg-gray-300"></span>
+                        Tidak dijawab: <span class="font-bold text-gray-900">{{ $unansweredCount }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-600 border-l border-gray-200 pl-4">
+                        <i class="ph ph-question text-gray-400 text-lg"></i>
+                        Total: <span class="font-bold text-gray-900">{{ $totalQuestions }}</span>
+                    </div>
+                </div>
+            </div>
+
+            @push('scripts')
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const ctx = document.getElementById('resultChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Benar', 'Salah', 'Tidak Dijawab'],
+                        datasets: [{
+                            data: [{{ $correctCount }}, {{ $wrongAnswered }}, {{ $unansweredCount }}],
+                            backgroundColor: ['#22c55e', '#ef4444', '#d1d5db'],
+                            borderWidth: 0,
+                            hoverOffset: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                        let pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+                                        return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            </script>
+            @endpush
+
             <div class="space-y-4">
                 @foreach($questions as $index => $question)
                     @php
