@@ -169,7 +169,7 @@ npx playwright show-report tests/e2e/playwright-report
 ## Pengembang
 
 Dikembangkan oleh **Laboratorium Informatika** — **Universitas Pelita Bangsa**.
-- Arya Wiratama
+- [Arya Wiratama](https://aryawiratama.site)
 - Farel Aryaduta Daniswara
 
 ---
