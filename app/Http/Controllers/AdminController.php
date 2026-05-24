@@ -23,10 +23,9 @@ class AdminController extends Controller
             $classroomsCount = Classroom::count();
             $examsCount = Exam::count();
 
-            $examsToday = Exam::whereDate('start_time', today())->count();
+            $examsToday = Exam::whereHas('classrooms', fn($q) => $q->whereDate('start_time', today()))->count();
             $activeExams = Exam::where('is_active', true)
-                ->where('start_time', '<=', now())
-                ->where('end_time', '>=', now())
+                ->whereHas('classrooms', fn($q) => $q->where('start_time', '<=', now())->where('end_time', '>=', now()))
                 ->count();
 
             $avgScore = ExamSession::whereNotNull('score')->whereNotNull('user_id')->avg('score');
@@ -75,6 +74,60 @@ class AdminController extends Controller
         });
 
         return view('admin.dashboard', $stats);
+    }
+
+    public function analytics()
+    {
+        $classrooms = Classroom::withCount('users')->orderBy('name')->get();
+
+        $classroomScores = Classroom::with(['users' => fn($q) => $q->where('role', 'mahasiswa')])
+            ->get()
+            ->map(function ($c) {
+                $userIds = $c->users->pluck('id');
+                $avg = ExamSession::whereIn('user_id', $userIds)
+                    ->whereNotNull('score')
+                    ->avg('score');
+                $c->avg_score = $avg ? round($avg, 1) : 0;
+                return $c;
+            });
+
+        $exams = Exam::withCount([
+            'examSessions as passed_count' => fn($q) => $q->whereNotNull('score')->where('score', '>=', DB::raw('exams.passing_grade')),
+            'examSessions as failed_count' => fn($q) => $q->whereNotNull('score')->where('score', '<', DB::raw('exams.passing_grade')),
+        ])->orderBy('title')->get();
+
+        $dailyTrend = ExamSession::whereNotNull('finished_at')
+            ->where('finished_at', '>=', now()->subDays(30))
+            ->selectRaw('DATE(finished_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->keyBy('date');
+
+        $dates = collect();
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $dates->push([
+                'date' => $date,
+                'count' => (int) ($dailyTrend[$date]->count ?? 0),
+            ]);
+        }
+
+        $scoreDist = [
+            'below50' => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
+            '50to69'  => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
+            '70to85'  => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
+            'above85' => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
+        ];
+
+        $totalGraded = array_sum($scoreDist);
+        $passCount  = ExamSession::whereNotNull('score')->where('score', '>=', (new Exam)->passing_grade ?? 70)->count();
+        $failCount  = ExamSession::whereNotNull('score')->where('score', '<', (new Exam)->passing_grade ?? 70)->count();
+
+        return view('admin.analytics', compact(
+            'classroomScores', 'exams', 'dates', 'scoreDist',
+            'totalGraded', 'passCount', 'failCount'
+        ));
     }
 
     public function students(Request $request)
@@ -428,11 +481,14 @@ class AdminController extends Controller
     {
         $classroom->loadCount('users');
 
-        $exams = Exam::where('classroom_id', $classroom->id)
+        $exams = Exam::whereHas('classrooms', fn($q) => $q->where('classroom_id', $classroom->id))
             ->where('is_active', true)
-            ->with('course')
-            ->orderBy('start_time')
-            ->get();
+            ->with('course', 'classrooms')
+            ->get()
+            ->sortBy(function ($exam) use ($classroom) {
+                $schedule = $exam->getScheduleForClassroom($classroom->id);
+                return $schedule ? $schedule->start_time : null;
+            });
 
         $students = User::where('role', 'mahasiswa')
             ->where('classroom_id', $classroom->id)
@@ -457,10 +513,14 @@ class AdminController extends Controller
 
     public function classroomRecapCsv(Classroom $classroom)
     {
-        $exams = Exam::where('classroom_id', $classroom->id)
+        $exams = Exam::whereHas('classrooms', fn($q) => $q->where('classroom_id', $classroom->id))
             ->where('is_active', true)
-            ->orderBy('start_time')
-            ->get();
+            ->with('classrooms')
+            ->get()
+            ->sortBy(function ($exam) use ($classroom) {
+                $schedule = $exam->getScheduleForClassroom($classroom->id);
+                return $schedule ? $schedule->start_time : null;
+            });
 
         $students = User::where('role', 'mahasiswa')
             ->where('classroom_id', $classroom->id)
@@ -498,7 +558,10 @@ class AdminController extends Controller
                 $headerRow[] = $exam->title . ' (' . $courseCode . ')';
             }
             $headerRow[] = 'Rata-rata';
-            fputcsv($file, $headerRow);
+            $sanitize = function ($value) {
+                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+            };
+            fputcsv($file, array_map($sanitize, $headerRow));
 
             $sanitize = function ($value) {
                 return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;

@@ -22,6 +22,9 @@
             <a href="{{ route('admin.exams.results.csv', $exam) }}" class="inline-flex items-center gap-2 bg-secondary hover:bg-[#3d3e8a] text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-file-csv text-lg"></i> CSV
             </a>
+            <button onclick="exportResultsPdf()" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
+                <i class="ph ph-file-pdf text-lg"></i> Chart PDF
+            </button>
             <button onclick="window.print()" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-printer text-lg"></i> Cetak
             </button>
@@ -45,11 +48,11 @@
             </div>
             <div>
                 <span class="block text-gray-500 mb-0.5">Kelas</span>
-                <span class="font-bold text-gray-900">{{ $exam->classroom->name ?? '-' }}</span>
+                <span class="font-bold text-gray-900">{{ $exam->classrooms->pluck('name')->implode(', ') ?: '-' }}</span>
             </div>
             <div>
                 <span class="block text-gray-500 mb-0.5">Waktu Pelaksanaan</span>
-                <span class="font-bold text-gray-900">{{ $exam->start_time->format('d/m/Y') }}</span>
+                <span class="font-bold text-gray-900">{{ $exam->classrooms->isNotEmpty() ? \Carbon\Carbon::parse($exam->classrooms->sortBy(fn($c) => $c->pivot->start_time)->first()->pivot->start_time)->format('d/m/Y') : '-' }}</span>
             </div>
         </div>
 
@@ -125,5 +128,136 @@
         </div>
         @endif
     </div>
+
+    @php
+        $lastSessions = collect();
+        foreach ($students as $userId => $sessions) {
+            $last = $sessions->where('finished_at', '!=', null)->last();
+            if ($last) $lastSessions->push($last);
+        }
+        $totalRes = $lastSessions->count();
+        $passedRes = $lastSessions->filter(fn($s) => $s->score >= $exam->passing_grade)->count();
+        $failedRes = $totalRes - $passedRes;
+        $scoresRes = $lastSessions->pluck('score');
+        $distBelow50 = $scoresRes->filter(fn($s) => $s < 50)->count();
+        $dist50to69  = $scoresRes->filter(fn($s) => $s >= 50 && $s < 70)->count();
+        $dist70to85  = $scoresRes->filter(fn($s) => $s >= 70 && $s <= 85)->count();
+        $distAbove85 = $scoresRes->filter(fn($s) => $s > 85)->count();
+    @endphp
+
+    <div class="grid md:grid-cols-3 gap-8 mb-8">
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Status Kelulusan</h3>
+                    <p class="text-xs text-gray-500">Percobaan terakhir tiap mahasiswa</p>
+                </div>
+                <button onclick="exportChart('resultsPieChart', 'status-kelulusan-{{ $exam->id }}')" class="text-sm text-primary hover:underline font-medium flex items-center gap-1 bg-[#e8eaf5] px-3 py-1.5 rounded-lg transition-colors">
+                    <i class="ph ph-download-simple text-base"></i> Export
+                </button>
+            </div>
+            <div class="relative" style="height: 220px;">
+                <canvas id="resultsPieChart"></canvas>
+            </div>
+        </div>
+        <div class="md:col-span-2 bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Distribusi Nilai</h3>
+                    <p class="text-xs text-gray-500">Sebaran skor peserta ujian ini</p>
+                </div>
+                <button onclick="exportChart('resultsDistChart', 'distribusi-nilai-{{ $exam->id }}')" class="text-sm text-primary hover:underline font-medium flex items-center gap-1 bg-[#e8eaf5] px-3 py-1.5 rounded-lg transition-colors">
+                    <i class="ph ph-download-simple text-base"></i> Export
+                </button>
+            </div>
+            <div class="relative" style="height: 220px;">
+                <canvas id="resultsDistChart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
+
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function exportResultsPdf() {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+    const pageW = 280;
+    const margin = 10;
+
+    pdf.setFontSize(16);
+    pdf.text('Laporan Nilai - {{ $exam->title }}', pageW / 2, 18, { align: 'center' });
+    pdf.setFontSize(9);
+    pdf.text('{{ $exam->course->name ?? '-' }} | {{ $exam->classrooms->pluck('name')->implode(', ') }}', pageW / 2, 25, { align: 'center' });
+
+    [['resultsPieChart', 'Status Kelulusan'], ['resultsDistChart', 'Distribusi Nilai']].forEach(([id, title], i) => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        const y = 36 + i * 100;
+        pdf.setFontSize(11);
+        pdf.text(title, margin, y);
+        const imgData = canvas.toDataURL('image/png');
+        const imgW = pageW - margin * 2;
+        const imgH = (canvas.height / canvas.width) * imgW;
+        pdf.addImage(imgData, 'PNG', margin, y + 4, imgW, Math.min(imgH, 80));
+    });
+
+    pdf.save('laporan-nilai-{{ $exam->id }}.pdf');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    new Chart(document.getElementById('resultsPieChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Lulus ({{ $passedRes }})', 'Gagal ({{ $failedRes }})'],
+            datasets: [{
+                data: [{{ $passedRes }}, {{ $failedRes }}],
+                backgroundColor: ['#22c55e', '#ef4444'],
+                borderWidth: 0,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('resultsDistChart'), {
+        type: 'bar',
+        data: {
+            labels: ['< 50', '50 – 70', '70 – 85', '> 85'],
+            datasets: [{
+                label: 'Peserta',
+                data: [{{ $distBelow50 }}, {{ $dist50to69 }}, {{ $dist70to85 }}, {{ $distAbove85 }}],
+                backgroundColor: ['#ef4444', '#f97316', '#eab308', '#22c55e'],
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f0f2f8' }, ticks: { stepSize: 1 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+});
+
+function exportChart(canvasId, filename) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = filename + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+</script>
+@endpush
 @endsection

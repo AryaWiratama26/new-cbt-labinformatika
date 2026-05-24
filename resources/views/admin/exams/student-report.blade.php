@@ -26,7 +26,7 @@
             </div>
             <div>
                 <h3 class="text-xl font-bold text-gray-900">{{ $user->name }}</h3>
-                <p class="text-sm text-gray-500">{{ $user->username }} — {{ $exam->classroom->name ?? '-' }}</p>
+                <p class="text-sm text-gray-500">{{ $user->username }} — {{ $user->classroom->name ?? '-' }}</p>
             </div>
         </div>
 

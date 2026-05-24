@@ -204,7 +204,7 @@
 
     <div class="title-section">
         <h2>Laporan Nilai Ujian</h2>
-        <p>{{ $exam->title }} — {{ $exam->course->name ?? '-' }} — Kelas {{ $exam->classroom->name ?? '-' }}</p>
+        <p>{{ $exam->title }} — {{ $exam->course->name ?? '-' }} — {{ $exam->classrooms->pluck('name')->implode(', ') ?: '-' }}</p>
     </div>
 
     <table class="info-box">
@@ -214,12 +214,12 @@
             <td>{{ $exam->course->name ?? '-' }} ({{ $exam->course->code ?? '-' }})</td>
             <td class="label">Tanggal</td>
             <td class="sep">:</td>
-            <td>{{ $exam->start_time->format('d/m/Y') }}</td>
+            <td>{{ $exam->classrooms->isNotEmpty() ? \Carbon\Carbon::parse($exam->classrooms->first()->pivot->start_time)->format('d/m/Y') : '-' }}</td>
         </tr>
         <tr>
             <td class="label">Kelas</td>
             <td class="sep">:</td>
-            <td>{{ $exam->classroom->name ?? '-' }}</td>
+            <td>{{ $exam->classrooms->pluck('name')->implode(', ') ?: '-' }}</td>
             <td class="label">Nilai Minimal</td>
             <td class="sep">:</td>
             <td>{{ $exam->passing_grade }}</td>

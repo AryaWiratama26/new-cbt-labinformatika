@@ -47,7 +47,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Daftar Peserta</h3>
-                <p class="text-sm text-gray-500">{{ $exam->title }} — Kelas {{ $exam->classroom->name ?? '-' }}</p>
+                <p class="text-sm text-gray-500">{{ $exam->title }} — Kelas {{ $exam->classrooms->pluck('name')->implode(', ') ?: '-' }}</p>
             </div>
             <div class="flex gap-2">
                 <select id="filter-status" onchange="filterTable()" class="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">

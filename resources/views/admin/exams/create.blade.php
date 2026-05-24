@@ -25,9 +25,8 @@
     <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
         <form action="{{ route('admin.exams.store') }}" method="POST" class="space-y-6">
             @csrf
-            
+
             <div class="grid md:grid-cols-2 gap-6">
-                <!-- Kiri -->
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Judul Ujian <span class="text-red-500">*</span></label>
@@ -50,40 +49,9 @@
                         </select>
                         <p class="text-xs text-gray-500 mt-1">Belum ada modul? <a href="{{ route('admin.courses.index') }}" class="text-primary hover:underline">Buat Modul di Mata Kuliah</a>.</p>
                     </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Kelas Tujuan <span class="text-red-500">*</span></label>
-                        <select name="classroom_id" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
-                            <option value="">-- Pilih Kelas --</option>
-                            @foreach($classrooms as $classroom)
-                                <option value="{{ $classroom->id }}" {{ old('classroom_id') == $classroom->id ? 'selected' : '' }}>{{ $classroom->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
                 </div>
 
-                <!-- Kanan -->
                 <div class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Waktu Mulai <span class="text-red-500">*</span></label>
-                        <input type="datetime-local" name="start_time" value="{{ old('start_time') }}" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Waktu Selesai <span class="text-red-500">*</span></label>
-                        <input type="datetime-local" name="end_time" value="{{ old('end_time') }}" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Durasi Pengerjaan (Menit) <span class="text-red-500">*</span></label>
-                        <input type="number" name="duration_minutes" value="{{ old('duration_minutes', 60) }}" min="1" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
-                    </div>
-                </div>
-            </div>
-
-            <div class="border-t border-gray-100 pt-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-4">Pengaturan Remedial</h3>
-                <div class="grid md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Nilai Minimal (Passing Grade) <span class="text-red-500">*</span></label>
                         <input type="number" name="passing_grade" value="{{ old('passing_grade', 70) }}" min="0" max="100" required class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
@@ -99,6 +67,64 @@
                         <input type="number" name="max_tab_switches" value="{{ old('max_tab_switches', '') }}" min="1" max="99" placeholder="Nonaktif" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50">
                         <p class="text-xs text-gray-500 mt-1">Kosongkan untuk nonaktif. Jika diisi, ujian auto-submit saat siswa melebihi batas.</p>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">PIN Ujian (Opsional)</label>
+                        <p class="text-xs text-gray-500 mt-1">PIN bisa diatur per kelas di bagian jadwal di bawah. Kosongkan jika tidak pakai PIN.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Kelas Tujuan & Jadwal <span class="text-red-500">*</span></h3>
+                <p class="text-sm text-gray-500 mb-4">Pilih satu atau lebih kelas. Atur jadwal dan PIN per kelas.</p>
+                <div class="space-y-3" id="classrooms-container">
+                    @foreach($classrooms as $classroom)
+                    <div class="border border-gray-200 rounded-2xl p-4 hover:border-primary/30 transition-colors" data-classroom-id="{{ $classroom->id }}">
+                        <label class="flex items-center gap-3 cursor-pointer mb-3">
+                            <input type="checkbox" name="classrooms[{{ $loop->index }}][classroom_id]" value="{{ $classroom->id }}" class="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/30 classroom-checkbox"
+                                {{ old('classrooms.' . $loop->index . '.classroom_id') == $classroom->id ? 'checked' : '' }}
+                                onchange="toggleClassroom(this, {{ $loop->index }})">
+                            <span class="font-semibold text-gray-900">{{ $classroom->name }}</span>
+                        </label>
+                        <div class="grid grid-cols-5 gap-3 ml-8">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Mulai</label>
+                                <input type="datetime-local" name="classrooms[{{ $loop->index }}][start_time]"
+                                    value="{{ old('classrooms.' . $loop->index . '.start_time') }}"
+                                    disabled class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50 classroom-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Selesai</label>
+                                <input type="datetime-local" name="classrooms[{{ $loop->index }}][end_time]"
+                                    value="{{ old('classrooms.' . $loop->index . '.end_time') }}"
+                                    disabled class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50 classroom-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Durasi (mnt)</label>
+                                <input type="number" name="classrooms[{{ $loop->index }}][duration_minutes]"
+                                    value="{{ old('classrooms.' . $loop->index . '.duration_minutes', 60) }}"
+                                    min="1" disabled class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50 classroom-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">PIN</label>
+                                <input type="text" name="classrooms[{{ $loop->index }}][pin]"
+                                    value="{{ old('classrooms.' . $loop->index . '.pin') }}"
+                                    maxlength="10" disabled placeholder="(opsional)"
+                                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50 classroom-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Aktif</label>
+                                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                                    <input type="hidden" name="classrooms[{{ $loop->index }}][is_active]" value="0" disabled class="classroom-input">
+                                    <input type="checkbox" name="classrooms[{{ $loop->index }}][is_active]" value="1"
+                                        checked disabled
+                                        class="sr-only peer classroom-input">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary disabled:opacity-50"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
                 </div>
             </div>
 
@@ -131,4 +157,16 @@
         </form>
     </div>
 </div>
+
+@push('scripts')
+<script>
+function toggleClassroom(checkbox, index) {
+    var card = checkbox.closest('[data-classroom-id]');
+    card.classList.toggle('bg-[#f8f9ff]', checkbox.checked);
+    card.querySelectorAll('.classroom-input').forEach(function(el) {
+        el.disabled = !checkbox.checked;
+    });
+}
+</script>
+@endpush
 @endsection

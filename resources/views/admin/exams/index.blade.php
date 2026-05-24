@@ -98,7 +98,7 @@
                                     <tr class="bg-gray-50 border-b border-gray-100">
                                         <th class="py-3 px-5 font-semibold text-gray-600 text-sm">Judul Ujian</th>
                                         <th class="py-3 px-5 font-semibold text-gray-600 text-sm">Kelas</th>
-                                        <th class="py-3 px-5 font-semibold text-gray-600 text-sm">Waktu</th>
+                                        <th class="py-3 px-5 font-semibold text-gray-600 text-sm">Jadwal per Kelas</th>
                                         <th class="py-3 px-5 font-semibold text-gray-600 text-sm">Status</th>
                                         <th class="py-3 px-5 font-semibold text-gray-600 text-sm text-right">Aksi</th>
                                     </tr>
@@ -108,26 +108,39 @@
                                         <tr class="hover:bg-gray-50/50 transition-colors">
                                             <td class="py-3 px-5">
                                                 <p class="font-bold text-gray-900">{{ $exam->title }}</p>
-                                                <p class="text-xs text-gray-500">{{ $exam->duration_minutes }} menit</p>
                                             </td>
                                             <td class="py-3 px-5">
-                                                <span class="inline-block px-2 py-0.5 bg-[#e8eaf5] text-primary text-xs rounded-md border border-primary/10">{{ $exam->classroom->name ?? '-' }}</span>
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach($exam->classrooms as $c)
+                                                        <span class="inline-block px-2 py-0.5 bg-[#e8eaf5] text-primary text-xs rounded-md border border-primary/10">{{ $c->name }}</span>
+                                                    @endforeach
+                                                </div>
                                             </td>
                                             <td class="py-3 px-5 text-sm text-gray-600">
-                                                <p>{{ $exam->start_time->format('d M Y, H:i') }}</p>
-                                                <p class="text-xs text-gray-400">{{ $exam->end_time->format('d M Y, H:i') }}</p>
+                                                @foreach($exam->classrooms as $c)
+                                                    <div class="mb-1">
+                                                        <span class="font-medium">{{ $c->name }}</span>:
+                                                        {{ \Carbon\Carbon::parse($c->pivot->start_time)->format('d M Y, H:i') }}
+                                                        - {{ \Carbon\Carbon::parse($c->pivot->end_time)->format('H:i') }}
+                                                        ({{ $c->pivot->duration_minutes }} mnt)
+                                                    </div>
+                                                @endforeach
                                             </td>
                                             <td class="py-3 px-5">
-                                                @if($exam->is_active && $exam->end_time > now())
-                                                    @if($exam->start_time <= now())
-                                                        <span class="px-2.5 py-0.5 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">Sedang Berjalan</span>
-                                                    @else
-                                                        <span class="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">Belum Mulai</span>
-                                                    @endif
-                                                @elseif($exam->end_time <= now())
-                                                    <span class="px-2.5 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full border border-gray-200">Selesai</span>
+                                                @php
+                                                    $anyActive = $exam->is_active && $exam->classrooms->contains(fn($c) => \Carbon\Carbon::parse($c->pivot->end_time) > now());
+                                                    $anyUpcoming = $exam->is_active && $exam->classrooms->contains(fn($c) => \Carbon\Carbon::parse($c->pivot->start_time) > now());
+                                                    $anyStarted = $exam->is_active && $exam->classrooms->contains(fn($c) => \Carbon\Carbon::parse($c->pivot->start_time) <= now());
+                                                    $allFinished = $exam->classrooms->every(fn($c) => \Carbon\Carbon::parse($c->pivot->end_time) <= now());
+                                                @endphp
+                                                @if($exam->is_active && $anyActive && $anyStarted)
+                                                    <span class="px-2.5 py-0.5 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200 whitespace-nowrap">Sedang Berjalan</span>
+                                                @elseif($exam->is_active && $anyUpcoming)
+                                                    <span class="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200 whitespace-nowrap">Belum Mulai</span>
+                                                @elseif($allFinished)
+                                                    <span class="px-2.5 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full border border-gray-200 whitespace-nowrap">Selesai</span>
                                                 @else
-                                                    <span class="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200">Nonaktif</span>
+                                                    <span class="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200 whitespace-nowrap">Nonaktif</span>
                                                 @endif
                                             </td>
                                             <td class="py-3 px-5 text-right">
@@ -177,7 +190,7 @@
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Judul Ujian</th>
                             <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Matkul & Kelas</th>
-                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Waktu</th>
+                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Jadwal per Kelas</th>
                             <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Status</th>
                             <th class="py-4 px-6 font-semibold text-gray-600 text-sm text-right">Aksi</th>
                         </tr>
@@ -187,27 +200,40 @@
                         <tr class="hover:bg-gray-50/50 transition-colors">
                             <td class="py-4 px-6">
                                 <p class="font-bold text-gray-900">{{ $exam->title }}</p>
-                                <p class="text-xs text-gray-500">{{ $exam->duration_minutes }} menit</p>
                             </td>
                             <td class="py-4 px-6">
                                 <p class="font-medium text-gray-800">{{ $exam->course->name ?? '-' }}</p>
-                                <span class="inline-block mt-1 px-2 py-0.5 bg-[#e8eaf5] text-primary text-xs rounded-md border border-primary/10">Kelas: {{ $exam->classroom->name ?? '-' }}</span>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    @foreach($exam->classrooms as $c)
+                                        <span class="inline-block px-2 py-0.5 bg-[#e8eaf5] text-primary text-xs rounded-md border border-primary/10">{{ $c->name }}</span>
+                                    @endforeach
+                                </div>
                             </td>
                             <td class="py-4 px-6 text-sm text-gray-600">
-                                <p><span class="font-medium">Mulai:</span> {{ $exam->start_time->format('d M Y, H:i') }}</p>
-                                <p><span class="font-medium">Selesai:</span> {{ $exam->end_time->format('d M Y, H:i') }}</p>
+                                @foreach($exam->classrooms as $c)
+                                    <div class="mb-1">
+                                        <span class="font-medium">{{ $c->name }}</span>:
+                                        {{ \Carbon\Carbon::parse($c->pivot->start_time)->format('d M Y, H:i') }}
+                                        - {{ \Carbon\Carbon::parse($c->pivot->end_time)->format('H:i') }}
+                                        ({{ $c->pivot->duration_minutes }} mnt)
+                                    </div>
+                                @endforeach
                             </td>
                             <td class="py-4 px-6">
-                                @if($exam->is_active && $exam->end_time > now())
-                                    @if($exam->start_time <= now())
-                                        <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">Sedang Berjalan</span>
-                                    @else
-                                        <span class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">Belum Mulai</span>
-                                    @endif
-                                @elseif($exam->end_time <= now())
-                                    <span class="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full border border-gray-200">Selesai</span>
+                                @php
+                                    $anyActive = $exam->is_active && $exam->classrooms->contains(fn($c) => \Carbon\Carbon::parse($c->pivot->end_time) > now());
+                                    $anyUpcoming = $exam->is_active && $exam->classrooms->contains(fn($c) => \Carbon\Carbon::parse($c->pivot->start_time) > now());
+                                    $anyStarted = $exam->is_active && $exam->classrooms->contains(fn($c) => \Carbon\Carbon::parse($c->pivot->start_time) <= now());
+                                    $allFinished = $exam->classrooms->every(fn($c) => \Carbon\Carbon::parse($c->pivot->end_time) <= now());
+                                @endphp
+                                @if($exam->is_active && $anyActive && $anyStarted)
+                                    <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200 whitespace-nowrap">Sedang Berjalan</span>
+                                @elseif($exam->is_active && $anyUpcoming)
+                                    <span class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200 whitespace-nowrap">Belum Mulai</span>
+                                @elseif($allFinished)
+                                    <span class="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full border border-gray-200 whitespace-nowrap">Selesai</span>
                                 @else
-                                    <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200">Nonaktif</span>
+                                    <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200 whitespace-nowrap">Nonaktif</span>
                                 @endif
                             </td>
                             <td class="py-4 px-6 text-right">

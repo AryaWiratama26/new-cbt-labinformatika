@@ -2,22 +2,52 @@
 
 namespace App\Models;
 
+use AllowDynamicProperties;
 use Illuminate\Database\Eloquent\Model;
 
+#[AllowDynamicProperties]
 class Exam extends Model
 {
-    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'classroom_id', 'start_time', 'end_time', 'duration_minutes', 'is_active', 'passing_grade', 'max_attempts', 'max_tab_switches', 'require_fullscreen'];
+    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'is_active', 'passing_grade', 'max_attempts', 'max_tab_switches', 'require_fullscreen'];
 
     protected $casts = [
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
         'is_active' => 'boolean',
         'require_fullscreen' => 'boolean',
-        'duration_minutes' => 'integer',
         'passing_grade' => 'integer',
         'max_attempts' => 'integer',
         'max_tab_switches' => 'integer',
     ];
+
+    public function hasPin(?int $classroomId = null): bool
+    {
+        if ($classroomId) {
+            if ($this->relationLoaded('classrooms')) {
+                return !empty($this->classrooms->firstWhere('id', $classroomId)?->pivot?->pin);
+            }
+            return $this->classrooms()
+                ->where('classroom_id', $classroomId)
+                ->whereNotNull('pin')
+                ->exists();
+        }
+        if ($this->relationLoaded('classrooms')) {
+            return $this->classrooms->contains(fn($c) => !empty($c->pivot?->pin));
+        }
+        return $this->classrooms()->whereNotNull('pin')->exists();
+    }
+
+    public function isClassroomActive(int $classroomId): bool
+    {
+        if ($this->relationLoaded('classrooms')) {
+            $pivot = $this->classrooms->firstWhere('id', $classroomId)?->pivot;
+            if ($pivot !== null) {
+                return (bool) $pivot->is_active;
+            }
+        }
+        $pivot = $this->classrooms()
+            ->where('classroom_id', $classroomId)
+            ->first()?->pivot;
+        return $pivot ? (bool) $pivot->is_active : false;
+    }
 
     public function course()
     {
@@ -29,9 +59,34 @@ class Exam extends Model
         return $this->belongsTo(Module::class);
     }
 
-    public function classroom()
+    public function classrooms()
     {
-        return $this->belongsTo(Classroom::class);
+        return $this->belongsToMany(Classroom::class, 'exam_classroom')
+            ->withPivot('start_time', 'end_time', 'duration_minutes', 'pin', 'is_active')
+            ->withTimestamps();
+    }
+
+    public function getScheduleForClassroom($classroomId)
+    {
+        if ($this->relationLoaded('classrooms')) {
+            $pivot = $this->classrooms->firstWhere('id', $classroomId)?->pivot;
+        } else {
+            $pivot = $this->classrooms()
+                ->where('classroom_id', $classroomId)
+                ->first()?->pivot;
+        }
+
+        if (!$pivot) return null;
+
+        return (object) [
+            'start_time' => $pivot->start_time instanceof \Carbon\Carbon
+                ? $pivot->start_time
+                : \Carbon\Carbon::parse($pivot->start_time),
+            'end_time' => $pivot->end_time instanceof \Carbon\Carbon
+                ? $pivot->end_time
+                : \Carbon\Carbon::parse($pivot->end_time),
+            'duration_minutes' => (int) $pivot->duration_minutes,
+        ];
     }
 
     public function questions()

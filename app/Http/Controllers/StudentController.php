@@ -10,16 +10,40 @@ use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
+    private function loadScheduleForUser(Exam $exam, $user)
+    {
+        if (!$exam->relationLoaded('classrooms')) {
+            $exam->load('classrooms');
+        }
+        $schedule = $exam->getScheduleForClassroom($user->classroom_id);
+        if (!$schedule) return null;
+        $exam->start_time = $schedule->start_time;
+        $exam->end_time = $schedule->end_time;
+        $exam->duration_minutes = $schedule->duration_minutes;
+        return $schedule;
+    }
+
+    private function getClassroomPin(Exam $exam, $classroomId): ?string
+    {
+        if ($exam->relationLoaded('classrooms')) {
+            return $exam->classrooms->firstWhere('id', $classroomId)?->pivot?->pin;
+        }
+        return $exam->classrooms()
+            ->where('classroom_id', $classroomId)
+            ->first()?->pivot?->pin;
+    }
+
     public function dashboard()
     {
         $user = auth()->user();
 
-        $exams = Exam::where('classroom_id', $user->classroom_id)
+        $exams = Exam::whereHas('classrooms', fn($q) => $q->where('classroom_id', $user->classroom_id)->where('is_active', true))
             ->where('is_active', true)
-            ->where('end_time', '>', now())
-            ->with(['course', 'module'])
-            ->orderBy('start_time', 'asc')
-            ->get();
+            ->with(['course', 'module', 'classrooms'])
+            ->get()
+            ->filter(fn($exam) => $this->loadScheduleForUser($exam, $user) && $exam->end_time > now())
+            ->sortBy(fn($e) => $e->start_time)
+            ->values();
 
         $examIds = $exams->pluck('id');
 
@@ -83,7 +107,7 @@ class StudentController extends Controller
 
         $sessions = ExamSession::where('user_id', $user->id)
             ->whereNotNull('finished_at')
-            ->with(['exam.course', 'exam.classroom'])
+            ->with(['exam.course', 'exam.classrooms'])
             ->orderBy('finished_at', 'desc')
             ->paginate(20);
 
@@ -126,8 +150,11 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        // BUG #15 fix: cek classroom, is_active, DAN end_time agar ujian expired tidak bisa diakses
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() > $exam->end_time) {
+        if (!$this->loadScheduleForUser($exam, $user)) {
+            abort(403, 'Anda tidak memiliki akses ke ujian ini.');
+        }
+
+        if (!$exam->is_active || !$exam->isClassroomActive($user->classroom_id) || now() > $exam->end_time) {
             abort(403, 'Anda tidak memiliki akses ke ujian ini.');
         }
 
@@ -136,9 +163,6 @@ class StudentController extends Controller
             ->orderByDesc('attempt_number')
             ->first();
 
-        // BUG #16 fix: sinkronkan logika canRemedial — konsisten dengan method Exam::canRemedial()
-        // Syarat: (1) ada session terakhir, (2) sudah selesai, (3) nilai < passing_grade,
-        //         (4) masih ada sisa percobaan, (5) max_attempts > 1
         $canRemedial = $lastSession
             && $lastSession->finished_at
             && $lastSession->score < $exam->passing_grade
@@ -147,26 +171,63 @@ class StudentController extends Controller
 
         $hasUnfinished = $lastSession && !$lastSession->finished_at;
 
-        return view('student.exams.show', compact('exam', 'lastSession', 'canRemedial', 'hasUnfinished'));
+        $pinKey = 'exam_pin_' . $exam->id . '_' . $user->classroom_id;
+        $needsPin = $exam->hasPin($user->classroom_id) && session($pinKey) !== $this->getClassroomPin($exam, $user->classroom_id);
+
+        return view('student.exams.show', compact('exam', 'lastSession', 'canRemedial', 'hasUnfinished', 'needsPin'));
+    }
+
+    public function verifyPin(Request $request, Exam $exam)
+    {
+        $user = auth()->user();
+
+        if (!$this->loadScheduleForUser($exam, $user)) {
+            abort(403, 'Anda tidak memiliki akses ke ujian ini.');
+        }
+
+        $expectedPin = $this->getClassroomPin($exam, $user->classroom_id);
+
+        if (!$expectedPin) {
+            return redirect()->route('student.exams.show', $exam);
+        }
+
+        $request->validate([
+            'pin' => 'required|string|max:10',
+        ]);
+
+        if ($request->pin === $expectedPin) {
+            $pinKey = 'exam_pin_' . $exam->id . '_' . $user->classroom_id;
+            session([$pinKey => $expectedPin]);
+            return redirect()->route('student.exams.show', $exam)->with('success', 'PIN benar, silakan mulai ujian.');
+        }
+
+        return redirect()->route('student.exams.show', $exam)->with('error', 'PIN salah. Silakan coba lagi.')->with('pin_error', true);
     }
 
     public function start(Exam $exam)
     {
         $user = auth()->user();
 
-        // BUG #3 fix: validasi akses lengkap
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time || now() > $exam->end_time) {
+        if (!$this->loadScheduleForUser($exam, $user)) {
             abort(403, 'Akses ditolak.');
+        }
+
+        if (!$exam->is_active || !$exam->isClassroomActive($user->classroom_id) || now() < $exam->start_time || now() > $exam->end_time) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $expectedPin = $this->getClassroomPin($exam, $user->classroom_id);
+        $pinKey = 'exam_pin_' . $exam->id . '_' . $user->classroom_id;
+        if ($expectedPin && session($pinKey) !== $expectedPin) {
+            return redirect()->route('student.exams.show', $exam)->with('error', 'Silakan masukkan PIN ujian terlebih dahulu.');
         }
 
         if ($exam->getQuestionsCount() === 0) {
             return redirect()->route('student.dashboard')->with('error', 'Ujian ini belum memiliki soal. Hubungi pengawas.');
         }
 
-        // BUG #1 fix: gunakan DB transaction agar atomic, cegah race condition double-start
         try {
             return DB::transaction(function () use ($user, $exam) {
-                // Lock row agar tidak ada race condition
                 $lastSession = ExamSession::where('user_id', $user->id)
                     ->where('exam_id', $exam->id)
                     ->orderByDesc('attempt_number')
@@ -198,8 +259,11 @@ class StudentController extends Controller
                 return redirect()->route('student.exams.attempt', $exam);
             });
         } catch (\Illuminate\Database\QueryException $e) {
-            // UNIQUE constraint violation = double submit, redirect ke attempt yang sudah ada
-            return redirect()->route('student.exams.attempt', $exam);
+            \Illuminate\Support\Facades\Log::error('Exam start failed: ' . $e->getMessage(), [
+                'user_id' => $user->id, 'exam_id' => $exam->id
+            ]);
+            return redirect()->route('student.dashboard')
+                ->with('error', 'Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }
 
@@ -207,13 +271,14 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        // BUG #3 fix: cek classroom, is_active, start_time, DAN end_time
-        // NEW-12 fix: tambahkan pengecekan end_time yang sebelumnya missing
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active || now() < $exam->start_time || now() > $exam->end_time) {
+        if (!$this->loadScheduleForUser($exam, $user)) {
             abort(403, 'Anda tidak berhak mengakses ujian ini.');
         }
 
-        // BUG #8 fix: jika tidak ada session aktif, redirect balik dengan pesan jelas
+        if (!$exam->is_active || now() < $exam->start_time || now() > $exam->end_time) {
+            abort(403, 'Anda tidak berhak mengakses ujian ini.');
+        }
+
         $session = ExamSession::where('user_id', $user->id)
             ->where('exam_id', $exam->id)
             ->whereNull('finished_at')
@@ -221,7 +286,6 @@ class StudentController extends Controller
             ->first();
 
         if (!$session) {
-            // Cek apakah ada session yang sudah selesai
             $finished = ExamSession::where('user_id', $user->id)
                 ->where('exam_id', $exam->id)
                 ->whereNotNull('finished_at')
@@ -232,7 +296,6 @@ class StudentController extends Controller
             return redirect()->route('student.exams.show', $exam)->with('error', 'Silakan mulai ujian terlebih dahulu.');
         }
 
-        // Calculate remaining time
         $endTimeBasedOnDuration = $session->started_at->addMinutes($exam->duration_minutes);
         $absoluteEndTime = $exam->end_time;
         $endTime = $endTimeBasedOnDuration < $absoluteEndTime ? $endTimeBasedOnDuration : $absoluteEndTime;
@@ -247,8 +310,6 @@ class StudentController extends Controller
 
         $questions = $exam->getQuestions();
 
-        // BUG #08 fix: gunakan deterministic sort berbasis hash, bukan global srand
-        // srand() mempolusi global PHP random state dan seed bisa diprediksi
         $seed = $user->id . '_' . $exam->id . '_' . $session->attempt_number;
         $questions = $questions->sortBy(fn($q) => crc32($seed . '_q_' . $q->id))->values();
 
@@ -266,7 +327,11 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+        if (!$this->loadScheduleForUser($exam, $user)) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        if (!$exam->is_active) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -293,8 +358,6 @@ class StudentController extends Controller
             'option_id' => 'nullable|exists:options,id',
         ]);
 
-        // BUG #10 fix: jangan panggil getQuestions() yang meload semua soal beserta opsi ke memory
-        
         $isValidQuestion = false;
         if ($exam->module_id) {
             $isValidQuestion = \App\Models\Question::where('id', $request->question_id)
@@ -314,7 +377,7 @@ class StudentController extends Controller
             $optionExists = \App\Models\Option::where('id', $request->option_id)
                 ->where('question_id', $request->question_id)
                 ->exists();
-                
+
             if (!$optionExists) {
                 return response()->json(['success' => false, 'message' => 'Opsi tidak valid untuk soal ini.'], 400);
             }
@@ -336,7 +399,11 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+        if (!$this->loadScheduleForUser($exam, $user)) {
+            return response()->json(['success' => false], 403);
+        }
+
+        if (!$exam->is_active) {
             return response()->json(['success' => false], 403);
         }
 
@@ -354,8 +421,6 @@ class StudentController extends Controller
             return response()->json(['success' => false, 'message' => 'Tab switch detection disabled'], 400);
         }
 
-        // Offline-resilient: jika client kirim total (dari akumulasi offline),
-        // gunakan SET bukan INCREMENT
         if ($request->has('total_switches') && is_numeric($request->total_switches)) {
             $newTotal = max($session->tab_switches, (int) $request->total_switches);
             $session->update(['tab_switches' => $newTotal]);
@@ -379,7 +444,11 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        if ($exam->classroom_id !== $user->classroom_id || !$exam->is_active) {
+        if (!$this->loadScheduleForUser($exam, $user)) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        if (!$exam->is_active) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -412,6 +481,11 @@ class StudentController extends Controller
         $errors = [];
 
         DB::transaction(function () use ($request, $session, $exam, &$synced, &$errors) {
+            $session = ExamSession::where('id', $session->id)->lockForUpdate()->first();
+            if (!$session || $session->finished_at) {
+                $errors[] = 'Sesi ujian telah berakhir.';
+                return;
+            }
             foreach ($request->input('answers', []) as $item) {
                 $valid = $exam->module_id
                     ? \App\Models\Question::where('id', $item['question_id'])->where('module_id', $exam->module_id)->exists()
@@ -460,18 +534,24 @@ class StudentController extends Controller
     {
         $user = auth()->user();
 
-        // BUG #8 fix: jika session sudah finished (double submit), redirect bersih
-        $session = ExamSession::where('user_id', $user->id)
-            ->where('exam_id', $exam->id)
-            ->whereNull('finished_at')
-            ->orderByDesc('attempt_number')
-            ->first();
-
-        if (!$session) {
-            return redirect()->route('student.dashboard')->with('success', 'Ujian Anda sudah berhasil dikumpulkan.');
+        if (!$this->loadScheduleForUser($exam, $user)) {
+            return redirect()->route('student.dashboard')->with('error', 'Akses ditolak.');
         }
 
-        return $this->processSubmission($request, $session, $exam);
+        return DB::transaction(function () use ($request, $user, $exam) {
+            $session = ExamSession::where('user_id', $user->id)
+                ->where('exam_id', $exam->id)
+                ->whereNull('finished_at')
+                ->orderByDesc('attempt_number')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$session) {
+                return redirect()->route('student.dashboard')->with('success', 'Ujian Anda sudah berhasil dikumpulkan.');
+            }
+
+            return $this->processSubmission($request, $session, $exam);
+        });
     }
 
     private function processSubmission(Request $request, ExamSession $session, Exam $exam)
@@ -480,22 +560,16 @@ class StudentController extends Controller
         $absoluteEndTime = $exam->end_time;
         $endTime = $endTimeBasedOnDuration < $absoluteEndTime ? $endTimeBasedOnDuration : $absoluteEndTime;
 
-        // Allow 30 seconds grace period for network delays
         if (now() > $endTime->copy()->addSeconds(30)) {
             return $this->autoSubmit($session, $exam, 'time');
         }
 
-        // BUG #2 fix: simpan jawaban dari form POST ke DB terlebih dahulu,
-        // lalu hitung skor DARI DB — bukan dari data form mentah.
-        // Ini memastikan jawaban auto-save sebelumnya tidak tertimpa oleh partial form data.
         $formAnswers = $request->input('answers', []);
         $questions   = $exam->getQuestions();
 
-        // Simpan jawaban form yang masuk (bila ada)
         foreach ($questions as $question) {
             $selectedOptionId = $formAnswers[$question->id] ?? null;
             if ($selectedOptionId) {
-                // Validasi option milik question ini
                 $valid = $question->options->where('id', $selectedOptionId)->isNotEmpty();
                 if ($valid) {
                     Answer::updateOrCreate(
@@ -506,7 +580,6 @@ class StudentController extends Controller
             }
         }
 
-        // Hitung skor dari database (source of truth), bukan dari $formAnswers
         $totalQuestions = $questions->count();
         $correctCount   = 0;
 

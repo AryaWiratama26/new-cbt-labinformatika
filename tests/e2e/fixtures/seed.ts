@@ -17,7 +17,7 @@ function runTinker(phpCode: string): string {
   const tmpFile = path.join(tmpDir, `tinker_${Date.now()}_${Math.random().toString(36).slice(2)}.php`);
   try {
     fs.writeFileSync(tmpFile, phpCode, 'utf-8');
-    return execSync(`type "${tmpFile}" | php artisan tinker`, { cwd: projectRoot, stdio: 'pipe', shell: true }).toString();
+    return execSync(`cat "${tmpFile}" | php artisan tinker`, { cwd: projectRoot, stdio: 'pipe', shell: true }).toString();
   } finally {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
   }

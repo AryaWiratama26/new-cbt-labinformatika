@@ -31,94 +31,11 @@
             <a href="{{ route('admin.exams.pdf', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-file-pdf text-lg"></i> PDF
             </a>
-            <button type="button" onclick="document.getElementById('duplicate-modal').classList.remove('hidden')" class="inline-flex items-center gap-2 bg-white border border-secondary/20 hover:bg-[#eeedf7] text-secondary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
-                <i class="ph ph-copy text-lg"></i> Duplikat
-            </button>
             <a href="{{ route('admin.exams.edit', $exam) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-pencil-simple text-lg"></i> Edit Jadwal
             </a>
         </div>
     </div>
-
-    @if(session('duplicate_errors'))
-        <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-800">
-            <div class="flex items-start gap-3">
-                <i class="ph ph-warning-circle text-xl flex-shrink-0 mt-0.5"></i>
-                <div>
-                    <p class="font-medium">Beberapa kelas gagal diduplikat:</p>
-                    <ul class="list-disc list-inside text-sm mt-1 space-y-0.5">
-                        @foreach(session('duplicate_errors') as $err)
-                            <li>{{ $err }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    <!-- Duplicate Modal -->
-    <div id="duplicate-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" style="backdrop-filter:blur(4px);">
-        <div class="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            <form method="POST" action="{{ route('admin.exams.duplicate', $exam) }}" class="flex flex-col max-h-[90vh]">
-                @csrf
-                <div class="p-6 pb-4 border-b border-gray-100 flex justify-between items-center">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-900">Duplikat Ujian</h3>
-                        <p class="text-sm text-gray-500 mt-0.5">Pilih kelas dan atur jadwal untuk {{ $exam->title }}</p>
-                    </div>
-                    <button type="button" onclick="this.closest('#duplicate-modal').classList.add('hidden')" class="h-10 w-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
-                        <i class="ph ph-x text-xl"></i>
-                    </button>
-                </div>
-
-                <div class="p-6 overflow-y-auto space-y-4">
-                    @forelse($classrooms as $classroom)
-                    <div class="border border-gray-200 rounded-2xl p-4 hover:border-primary/30 transition-colors">
-                        <label class="flex items-center gap-3 cursor-pointer mb-3">
-                            <input type="checkbox" name="classrooms[{{ $loop->index }}][classroom_id]" value="{{ $classroom->id }}" class="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/30 classroom-checkbox" onchange="
-                                var card = this.closest('.border');
-                                card.classList.toggle('bg-[#f8f9ff]', this.checked);
-                                card.querySelectorAll('input[type=datetime-local], input[type=number]').forEach(function(el) {
-                                    el.disabled = !this.checked;
-                                }.bind(this));
-                            ">
-                            <span class="font-semibold text-gray-900">{{ $classroom->name }}</span>
-                        </label>
-                        <div class="grid grid-cols-3 gap-3 ml-8">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Mulai</label>
-                                <input type="datetime-local" name="classrooms[{{ $loop->index }}][start_time]" value="{{ $exam->start_time->format('Y-m-d\TH:i') }}" disabled class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Selesai</label>
-                                <input type="datetime-local" name="classrooms[{{ $loop->index }}][end_time]" value="{{ $exam->end_time->format('Y-m-d\TH:i') }}" disabled class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Durasi (mnt)</label>
-                                <input type="number" name="classrooms[{{ $loop->index }}][duration_minutes]" value="{{ $exam->duration_minutes }}" min="1" disabled class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 disabled:opacity-50">
-                            </div>
-                        </div>
-                    </div>
-                    @empty
-                        <p class="text-center text-gray-500 py-8">Tidak ada kelas lain untuk diduplikat.</p>
-                    @endforelse
-                </div>
-
-                <div class="p-6 pt-4 border-t border-gray-100 flex justify-end gap-3">
-                    <button type="button" onclick="this.closest('#duplicate-modal').classList.add('hidden')" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors text-sm">Batal</button>
-                    <button type="submit" class="px-5 py-2.5 bg-secondary hover:bg-secondary-hover text-white rounded-xl font-medium transition-colors text-sm flex items-center gap-2">
-                        <i class="ph ph-copy"></i> Duplikat
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
 
     <div class="grid md:grid-cols-3 gap-8">
 
@@ -133,15 +50,27 @@
                     </div>
                     <div>
                         <span class="block text-gray-500 mb-0.5">Kelas</span>
-                        <span class="font-medium text-gray-900">{{ $exam->classroom->name ?? '-' }}</span>
+                        <div class="flex flex-wrap gap-1">
+                            @forelse($exam->classrooms as $c)
+                                <span class="inline-block px-2 py-0.5 bg-[#e8eaf5] text-primary text-xs rounded-md border border-primary/10">{{ $c->name }}</span>
+                            @empty
+                                <span class="text-gray-400">-</span>
+                            @endforelse
+                        </div>
                     </div>
                     <div>
-                        <span class="block text-gray-500 mb-0.5">Waktu Ujian</span>
-                        <span class="font-medium text-gray-900">{{ $exam->start_time->format('d/m/Y H:i') }} – {{ $exam->end_time->format('H:i') }}</span>
-                    </div>
-                    <div>
-                        <span class="block text-gray-500 mb-0.5">Durasi</span>
-                        <span class="font-medium text-gray-900">{{ $exam->duration_minutes }} Menit</span>
+                        <span class="block text-gray-500 mb-0.5">Jadwal per Kelas</span>
+                        @foreach($exam->classrooms as $c)
+                            <div class="mb-2 p-2 bg-gray-50 rounded-lg">
+                                <span class="font-semibold text-gray-900">{{ $c->name }}</span>
+                                <div class="text-xs text-gray-600 mt-0.5">
+                                    {{ \Carbon\Carbon::parse($c->pivot->start_time)->format('d/m/Y H:i') }}
+                                    –
+                                    {{ \Carbon\Carbon::parse($c->pivot->end_time)->format('H:i') }}
+                                    ({{ $c->pivot->duration_minutes }} menit)
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                     <div>
                         <span class="block text-gray-500 mb-0.5">Status</span>
@@ -154,7 +83,6 @@
                 </div>
             </div>
 
-            <!-- Modul Info -->
             @if($exam->module)
             <div class="bg-[#e8eaf5] border border-primary/10 p-6 rounded-[2rem]">
                 <h3 class="text-base font-bold text-primary mb-2 flex items-center gap-2"><i class="ph ph-stack"></i> Modul Terhubung</h3>

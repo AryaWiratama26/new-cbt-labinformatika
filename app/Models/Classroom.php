@@ -15,6 +15,8 @@ class Classroom extends Model
 
     public function exams()
     {
-        return $this->hasMany(Exam::class);
+        return $this->belongsToMany(Exam::class, 'exam_classroom')
+            ->withPivot('start_time', 'end_time', 'duration_minutes', 'pin', 'is_active')
+            ->withTimestamps();
     }
 }

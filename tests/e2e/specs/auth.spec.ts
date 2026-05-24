@@ -29,19 +29,19 @@ test.describe('Authentication', () => {
     const login = new LoginPage(page);
     await login.goto();
     await login.login('admin', 'wrongpassword');
-    await expect(page.locator('text=credentials do not match')).toBeVisible();
+    await expect(page.locator('text=Username atau password yang Anda masukkan salah')).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
-  });
-
-  test('1.6 Logout redirects to login', async ({ adminPage }) => {
-    await adminPage.page.goto('/admin/dashboard');
-    await adminPage.page.locator('form[action*="logout"] button').click();
-    await expect(adminPage.page).toHaveURL(/\/login/);
   });
 
   test('1.7 Authenticated user redirected from /login', async ({ adminPage }) => {
     await adminPage.page.goto('/admin/dashboard');
     await adminPage.page.goto('/login');
     await expect(adminPage.page).toHaveURL(/\/admin\/dashboard/);
+  });
+
+  test('1.6 Logout redirects to login', async ({ adminPage }) => {
+    await adminPage.page.goto('/admin/dashboard');
+    await adminPage.page.locator('form[action*="logout"] button').click();
+    await expect(adminPage.page).toHaveURL(/\/login/);
   });
 });

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Answer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ExamController extends Controller
 {
@@ -19,7 +20,7 @@ class ExamController extends Controller
         $classrooms = Classroom::orderBy('name')->get();
         $group = request('group');
 
-        $query = Exam::with(['course', 'classroom']);
+        $query = Exam::with(['course', 'classrooms']);
 
         $search = request('search');
         $courseId = request('course_id');
@@ -28,11 +29,11 @@ class ExamController extends Controller
 
         $query->when($search, fn($q) => $q->where('title', 'like', '%' . $search . '%'))
             ->when($courseId, fn($q) => $q->where('course_id', $courseId))
-            ->when($classroomId, fn($q) => $q->where('classroom_id', $classroomId))
-            ->when($status === 'active', fn($q) => $q->where('is_active', true)->where('end_time', '>', now()))
+            ->when($classroomId, fn($q) => $q->whereHas('classrooms', fn($cq) => $cq->where('classroom_id', $classroomId)))
+            ->when($status === 'active', fn($q) => $q->where('is_active', true)->whereHas('classrooms', fn($cq) => $cq->where('end_time', '>', now())))
             ->when($status === 'inactive', fn($q) => $q->where('is_active', false))
-            ->when($status === 'upcoming', fn($q) => $q->where('start_time', '>', now()))
-            ->when($status === 'finished', fn($q) => $q->where('end_time', '<=', now()));
+            ->when($status === 'upcoming', fn($q) => $q->whereHas('classrooms', fn($cq) => $cq->where('start_time', '>', now())))
+            ->when($status === 'finished', fn($q) => $q->whereHas('classrooms', fn($cq) => $cq->where('end_time', '<=', now())));
 
         if ($group === 'course') {
             $exams = $query->latest()->get()->groupBy(fn($e) => $e->course->name ?? 'Tanpa Matkul');
@@ -57,23 +58,46 @@ class ExamController extends Controller
             'title'            => 'required|string|max:255',
             'description'      => 'nullable|string',
             'module_id'        => 'required|exists:modules,id',
-            'classroom_id'     => 'required|exists:classrooms,id',
-            'start_time'       => 'required|date',
-            'end_time'         => 'required|date|after:start_time',
-            'duration_minutes' => 'required|integer|min:1',
+            'classrooms'       => 'required|array|min:1',
+            'classrooms.*.classroom_id'       => 'required|exists:classrooms,id',
+            'classrooms.*.start_time'         => 'required|date',
+            'classrooms.*.end_time'           => 'required|date|after:classrooms.*.start_time',
+            'classrooms.*.duration_minutes'   => 'required|integer|min:1',
             'is_active'        => 'boolean',
             'passing_grade'    => 'required|integer|min:0|max:100',
             'max_attempts'     => 'required|integer|min:1|max:10',
             'max_tab_switches' => 'nullable|integer|min:1|max:99',
             'require_fullscreen' => 'boolean',
+            'classrooms.*.pin' => 'nullable|string|max:10',
+            'classrooms.*.is_active' => 'boolean',
         ]);
 
-        // Auto-fill course_id from the selected module
         $module = \App\Models\Module::findOrFail($validated['module_id']);
-        $validated['course_id'] = $module->course_id;
-        $validated['is_active'] = $request->boolean('is_active');
 
-        Exam::create($validated);
+        $exam = Exam::create([
+            'title'             => $validated['title'],
+            'description'       => $validated['description'] ?? null,
+            'course_id'         => $module->course_id,
+            'module_id'         => $validated['module_id'],
+            'is_active'         => $request->boolean('is_active'),
+            'passing_grade'     => $validated['passing_grade'],
+            'max_attempts'      => $validated['max_attempts'],
+            'max_tab_switches'  => $validated['max_tab_switches'] ?? null,
+            'require_fullscreen' => $request->boolean('require_fullscreen'),
+        ]);
+
+        $classroomsData = [];
+        foreach ($validated['classrooms'] as $item) {
+            $classroomsData[$item['classroom_id']] = [
+                'start_time' => $item['start_time'],
+                'end_time' => $item['end_time'],
+                'duration_minutes' => $item['duration_minutes'],
+                'pin' => $item['pin'] ?: null,
+                'is_active' => $item['is_active'] ?? true,
+            ];
+        }
+        $exam->classrooms()->sync($classroomsData);
+
         \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->route('admin.exams.index')->with('success', 'Jadwal ujian berhasil dibuat.');
     }
@@ -82,6 +106,7 @@ class ExamController extends Controller
     {
         $modules = \App\Models\Module::with('course')->withCount('questions')->orderBy('course_id')->get();
         $classrooms = Classroom::orderBy('name')->get();
+        $exam->load('classrooms');
         return view('admin.exams.edit', compact('exam', 'modules', 'classrooms'));
     }
 
@@ -91,25 +116,46 @@ class ExamController extends Controller
             'title'            => 'required|string|max:255',
             'description'      => 'nullable|string',
             'module_id'        => 'required|exists:modules,id',
-            'classroom_id'     => 'required|exists:classrooms,id',
-            'start_time'       => 'required|date',
-            'end_time'         => 'required|date|after:start_time',
-            'duration_minutes' => 'required|integer|min:1',
+            'classrooms'       => 'required|array|min:1',
+            'classrooms.*.classroom_id'       => 'required|exists:classrooms,id',
+            'classrooms.*.start_time'         => 'required|date',
+            'classrooms.*.end_time'           => 'required|date|after:classrooms.*.start_time',
+            'classrooms.*.duration_minutes'   => 'required|integer|min:1',
             'is_active'        => 'boolean',
             'passing_grade'    => 'required|integer|min:0|max:100',
             'max_attempts'     => 'required|integer|min:1|max:10',
             'max_tab_switches' => 'nullable|integer|min:1|max:99',
             'require_fullscreen' => 'boolean',
+            'classrooms.*.pin' => 'nullable|string|max:10',
+            'classrooms.*.is_active' => 'boolean',
         ]);
 
         $module = \App\Models\Module::findOrFail($validated['module_id']);
-        $validated['course_id'] = $module->course_id;
-        $validated['is_active'] = $request->boolean('is_active');
-        // BUG #14 fix: checkbox unchecked tidak mengirim value, harus di-handle eksplisit
-        $validated['require_fullscreen'] = $request->boolean('require_fullscreen');
-        $validated['max_tab_switches'] = $request->input('max_tab_switches') ?: null;
 
-        $exam->update($validated);
+        $exam->update([
+            'title'             => $validated['title'],
+            'description'       => $validated['description'] ?? null,
+            'course_id'         => $module->course_id,
+            'module_id'         => $validated['module_id'],
+            'is_active'         => $request->boolean('is_active'),
+            'passing_grade'     => $validated['passing_grade'],
+            'max_attempts'      => $validated['max_attempts'],
+            'max_tab_switches'  => $validated['max_tab_switches'] ?? null,
+            'require_fullscreen' => $request->boolean('require_fullscreen'),
+        ]);
+
+        $classroomsData = [];
+        foreach ($validated['classrooms'] as $item) {
+            $classroomsData[$item['classroom_id']] = [
+                'start_time' => $item['start_time'],
+                'end_time' => $item['end_time'],
+                'duration_minutes' => $item['duration_minutes'],
+                'pin' => $item['pin'] ?: null,
+                'is_active' => $item['is_active'] ?? true,
+            ];
+        }
+        $exam->classrooms()->sync($classroomsData);
+
         \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
         return redirect()->route('admin.exams.index')->with('success', 'Jadwal ujian berhasil diperbarui.');
     }
@@ -121,70 +167,16 @@ class ExamController extends Controller
         return redirect()->route('admin.exams.index')->with('success', 'Ujian berhasil dihapus.');
     }
 
-    public function duplicate(Request $request, Exam $exam)
-    {
-        $validated = $request->validate([
-            'classrooms' => 'required|array|min:1',
-            'classrooms.*.classroom_id' => 'required|exists:classrooms,id',
-            'classrooms.*.start_time' => 'required|date',
-            'classrooms.*.end_time' => 'required|date',
-            'classrooms.*.duration_minutes' => 'required|integer|min:1',
-        ]);
-
-        $created = 0;
-        $errors = [];
-
-        foreach ($validated['classrooms'] as $item) {
-            try {
-                Exam::create([
-                    'title'             => $exam->title,
-                    'description'       => $exam->description,
-                    'course_id'         => $exam->course_id,
-                    'module_id'         => $exam->module_id,
-                    'classroom_id'      => $item['classroom_id'],
-                    'start_time'        => $item['start_time'],
-                    'end_time'          => $item['end_time'],
-                    'duration_minutes'  => $item['duration_minutes'],
-                    'is_active'         => $exam->is_active,
-                    'passing_grade'     => $exam->passing_grade,
-                    'max_attempts'      => $exam->max_attempts,
-                    'max_tab_switches'  => $exam->max_tab_switches,
-                    'require_fullscreen' => $exam->require_fullscreen,
-                ]);
-                $created++;
-            } catch (\Exception $e) {
-                $errors[] = "Gagal duplikat ke classroom ID {$item['classroom_id']}: {$e->getMessage()}";
-            }
-        }
-
-        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
-
-        $msg = "Berhasil menduplikat ke {$created} kelas.";
-        if (!empty($errors)) {
-            if ($created === 0) {
-                return redirect()->route('admin.exams.show', $exam)->with('error', 'Gagal menduplikat ke semua kelas.')->with('duplicate_errors', $errors);
-            }
-            return redirect()->route('admin.exams.show', $exam)->with('success', $msg)->with('duplicate_errors', $errors);
-        }
-
-        return redirect()->route('admin.exams.index')->with('success', $msg);
-    }
     public function show(Exam $exam)
     {
-        $exam->load('course', 'classroom', 'module');
-
+        $exam->load('course', 'classrooms', 'module');
         $questions = $exam->getQuestions();
-
-        $classrooms = Classroom::where('id', '!=', $exam->classroom_id)
-            ->orderBy('name')
-            ->get();
-
-        return view('admin.exams.show', compact('exam', 'questions', 'classrooms'));
+        return view('admin.exams.show', compact('exam', 'questions'));
     }
 
     public function results(Exam $exam)
     {
-        $exam->load('course', 'classroom');
+        $exam->load('course', 'classrooms');
 
         $allSessions = ExamSession::where('exam_id', $exam->id)
             ->with('user')
@@ -199,15 +191,15 @@ class ExamController extends Controller
 
     public function monitor(Request $request, Exam $exam)
     {
-        $exam->load('course', 'classroom');
+        $exam->load('course', 'classrooms');
+
+        $classroomIds = $exam->classrooms()->wherePivot('is_active', true)->pluck('classroom_id');
 
         $students = User::where('role', 'mahasiswa')
-            ->where('classroom_id', $exam->classroom_id)
+            ->whereIn('classroom_id', $classroomIds)
             ->orderBy('name')
             ->get();
 
-        // BUG #02 fix: gunakan groupBy + pick latest session secara eksplisit
-        // keyBy sebelumnya meng-overwrite silently, behavior bergantung sort order
         $sessions = ExamSession::where('exam_id', $exam->id)
             ->whereIn('user_id', $students->pluck('id'))
             ->orderByDesc('attempt_number')
@@ -246,7 +238,6 @@ class ExamController extends Controller
         ];
 
         if ($request->ajax() || $request->wantsJson()) {
-            // BUG #6 fix: gunakan $exam->passing_grade, bukan hardcode 70
             $passingGrade = $exam->passing_grade;
 
             $participantsJson = $participants->mapWithKeys(function ($p) use ($passingGrade) {
@@ -286,7 +277,7 @@ class ExamController extends Controller
 
     public function exportPdf(Exam $exam)
     {
-        $exam->load('course', 'classroom');
+        $exam->load('course', 'classrooms');
 
         $allSessions = ExamSession::where('exam_id', $exam->id)
             ->with('user')
@@ -309,7 +300,6 @@ class ExamController extends Controller
             'exam', 'students', 'avgScore', 'passed', 'failed', 'totalStudents', 'highest', 'lowest'
         ));
 
-        // NEW-07 fix: sanitize filename to prevent header injection
         $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $exam->title);
         $filename = 'Laporan_Nilai_' . $safeName . '.pdf';
         return $pdf->download($filename);
@@ -317,7 +307,7 @@ class ExamController extends Controller
 
     public function resultsCsv(Exam $exam)
     {
-        $exam->load('course', 'classroom');
+        $exam->load('course', 'classrooms');
 
         $allSessions = ExamSession::where('exam_id', $exam->id)
             ->with('user')
@@ -377,7 +367,7 @@ class ExamController extends Controller
 
     public function studentReport(Exam $exam, User $user)
     {
-        $exam->load('course', 'classroom');
+        $exam->load('course', 'classrooms');
 
         $questions = $exam->getQuestions();
 

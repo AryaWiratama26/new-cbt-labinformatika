@@ -17,16 +17,16 @@ export default defineConfig({
 
   projects: [
     {
-      name: 'auth',
-      testMatch: 'auth.spec.ts',
-    },
-    {
       name: 'admin',
       testMatch: '**/admin/**/*.spec.ts',
     },
     {
       name: 'student',
       testMatch: '**/student/**/*.spec.ts',
+    },
+    {
+      name: 'auth',
+      testMatch: 'auth.spec.ts',
     },
   ],
 });

@@ -32,6 +32,19 @@
     </div>
     @endif
 
+    @if(session('success'))
+        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
+            <i class="ph ph-check-circle text-xl flex-shrink-0"></i>
+            <span>{{ session('success') }}</span>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl flex-shrink-0"></i>
+            <span>{{ session('error') }}</span>
+        </div>
+    @endif
+
     <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 text-center mb-6">
         <div class="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-primary/10 text-primary mb-6">
             <i class="ph ph-exam text-4xl"></i>
@@ -95,6 +108,38 @@
 
         @if($hasUnfinished || $canRemedial || $lastSession === null)
 
+        @if($needsPin)
+        @php $pinError = session('pin_error'); @endphp
+        <div class="mb-6 p-5 rounded-2xl {{ $pinError ? 'bg-red-50 border border-red-300' : 'bg-amber-50 border border-amber-200' }}">
+            <div class="flex items-start gap-3">
+                <div class="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 {{ $pinError ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700' }}">
+                    <i class="{{ $pinError ? 'ph ph-warning-circle' : 'ph ph-lock' }} text-xl"></i>
+                </div>
+                <div class="text-left flex-1">
+                    <strong class="{{ $pinError ? 'text-red-900' : 'text-amber-900' }}">Ujian Dilindungi PIN</strong>
+                    <p class="text-sm mt-0.5 {{ $pinError ? 'text-red-700' : 'text-amber-700' }}">
+                        @if($pinError)
+                            PIN yang Anda masukkan salah. Silakan coba lagi atau hubungi dosen pengawas.
+                        @else
+                            Masukkan PIN yang dibagikan oleh dosen pengawas untuk memulai ujian.
+                        @endif
+                    </p>
+                </div>
+            </div>
+            <form action="{{ route('student.exams.verify_pin', $exam) }}" method="POST" class="mt-3">
+                @csrf
+                <div class="flex gap-3">
+                    <input type="text" name="pin" maxlength="10" placeholder="Masukkan PIN" autocomplete="off"
+                        class="flex-1 px-4 py-3 border rounded-xl bg-white text-center text-lg font-bold tracking-widest transition-colors focus:ring-2 focus:outline-none
+                        {{ $pinError ? 'border-red-400 focus:ring-red-300 focus:border-red-500' : 'border-amber-300 focus:ring-amber-300 focus:border-amber-400' }}">
+                    <button type="submit" class="px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 text-white {{ $pinError ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700' }}">
+                        <i class="ph ph-key"></i> Verifikasi
+                    </button>
+                </div>
+            </form>
+        </div>
+        @endif
+
         @if($exam->require_fullscreen)
         <div id="fullscreen-gate" class="mb-6 p-5 rounded-2xl bg-blue-50 border border-blue-200">
             <div class="flex items-start gap-3">
@@ -116,7 +161,7 @@
         @endif
         <form action="{{ route('student.exams.start', $exam) }}" method="POST">
             @csrf
-            <button type="submit" id="start-exam-btn" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" {{ $exam->require_fullscreen ? 'disabled' : '' }}>
+            <button type="submit" id="start-exam-btn" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" {{ $exam->require_fullscreen || $needsPin ? 'disabled' : '' }}>
                 <i class="ph-fill ph-play-circle"></i> 
                 @if($hasUnfinished)
                     Lanjutkan Pengerjaan

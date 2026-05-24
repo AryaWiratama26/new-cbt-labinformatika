@@ -27,7 +27,7 @@
             </div>
             <div class="flex-grow">
                 <h3 class="text-xl font-bold text-gray-900">{{ auth()->user()->name }}</h3>
-                <p class="text-sm text-gray-500">{{ auth()->user()->username }} — {{ $exam->classroom->name ?? '-' }}</p>
+                <p class="text-sm text-gray-500">{{ auth()->user()->username }} — {{ auth()->user()->classroom->name ?? '-' }}</p>
             </div>
             <div class="text-right md:text-right">
                 <p class="text-4xl font-bold {{ ($examSession->score ?? 0) >= ($exam->passing_grade ?? 70) ? 'text-green-600' : 'text-red-500' }}">

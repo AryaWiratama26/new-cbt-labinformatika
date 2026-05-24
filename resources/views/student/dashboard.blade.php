@@ -43,6 +43,11 @@
                 
                 <h4 class="text-lg font-bold text-gray-900 mb-1">{{ $exam->title }}</h4>
                 <p class="text-sm text-gray-500 mb-4">{{ $exam->course->name ?? '-' }}</p>
+                @if($exam->hasPin(auth()->user()->classroom_id))
+                    <div class="mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+                        <i class="ph ph-lock-simple text-xs"></i> PIN
+                    </div>
+                @endif
                 
                 <div class="space-y-2 mb-6 flex-grow">
                     <div class="flex items-center gap-2 text-sm text-gray-600">

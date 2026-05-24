@@ -28,6 +28,7 @@
             @if(Auth::user()->role === 'admin')
             <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 mr-4">
                 <a href="{{ route('admin.dashboard') }}" class="hover:text-primary transition-colors">Dashboard</a>
+                <a href="{{ route('admin.analytics') }}" class="hover:text-primary transition-colors">Analitik</a>
                 <a href="{{ route('admin.courses.index') }}" class="hover:text-primary transition-colors">Mata Kuliah</a>
                 <a href="{{ route('admin.exams.index') }}" class="hover:text-primary transition-colors">Ujian</a>
                 <a href="{{ route('admin.students.index') }}" class="hover:text-primary transition-colors">Mahasiswa</a>

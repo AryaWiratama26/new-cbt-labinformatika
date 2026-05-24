@@ -13,7 +13,7 @@ test.describe('Student Management', () => {
     await adminPage.page.locator('input[name="nim"]').fill('99999999');
     await adminPage.page.locator('input[name="name"]').fill('New Student');
     await adminPage.page.locator('select[name="classroom_id"]').selectOption({ index: 1 });
-    await adminPage.page.locator('button[type="submit"]').click();
+    await adminPage.page.getByRole('button', { name: /simpan mahasiswa/i }).click();
     await expect(adminPage.page.locator('text=berhasil ditambahkan')).toBeVisible();
   });
 

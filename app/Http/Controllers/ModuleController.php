@@ -355,7 +355,7 @@ class ModuleController extends Controller
     {
         if ($question->image) {
             $path = ltrim($question->image, '/');
-            if (Storage::disk('public')->exists($path)) {
+            if (str_starts_with($path, 'questions/') && Storage::disk('public')->exists($path)) {
                 Storage::disk('public')->delete($path);
             }
         }
