@@ -60,6 +60,8 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{module}/questions/{question}', [\App\Http\Controllers\ModuleController::class, 'updateQuestion'])->name('questions.update');
             Route::post('/{module}/questions/{question}/duplicate', [\App\Http\Controllers\ModuleController::class, 'duplicateQuestion'])->name('questions.duplicate');
             Route::delete('/{module}/questions/{question}', [\App\Http\Controllers\ModuleController::class, 'destroyQuestion'])->name('questions.destroy');
+            Route::post('/{module}/generate-question', [\App\Http\Controllers\ModuleController::class, 'generateQuestion'])->name('questions.generate');
+            Route::post('/{module}/questions/save-generated', [\App\Http\Controllers\ModuleController::class, 'saveGeneratedQuestion'])->name('questions.save_generated');
         });
 
         // Exams (schedule)

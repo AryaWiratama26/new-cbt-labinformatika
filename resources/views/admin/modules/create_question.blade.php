@@ -5,9 +5,9 @@
         <a href="{{ route('admin.courses.modules.show', [$course, $module]) }}" class="h-10 w-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-primary hover:border-primary transition-colors">
             <i class="ph ph-arrow-left text-xl"></i>
         </a>
-        <div>
+        <div class="flex-1">
             <p class="text-sm text-gray-500">{{ $module->full_name }}</p>
-            <h2 class="text-3xl font-bold text-gray-900">Tambah Soal Manual</h2>
+            <h2 class="text-3xl font-bold text-gray-900">Tambah Soal Baru</h2>
         </div>
     </div>
 

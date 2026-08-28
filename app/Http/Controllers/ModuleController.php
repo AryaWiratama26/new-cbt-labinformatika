@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Module;
 use App\Models\Question;
+use App\Services\QuestionGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
@@ -200,6 +201,80 @@ class ModuleController extends Controller
     public function createQuestion(Course $course, Module $module)
     {
         return view('admin.modules.create_question', compact('course', 'module'));
+    }
+
+    public function generateQuestion(Request $request, Course $course, Module $module, QuestionGeneratorService $generator)
+    {
+        if (!$generator->isConfigured()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'GROQ_API_KEY belum dikonfigurasi. Tambahkan di file .env',
+            ], 400);
+        }
+
+        $request->validate([
+            'topic' => 'required|string|max:255',
+            'difficulty' => 'required|in:mudah,sedang,sulit',
+            'count' => 'sometimes|integer|min:1|max:10',
+        ]);
+
+        $questions = $generator->generate(
+            $request->topic,
+            $request->difficulty,
+            null,
+            (int) $request->count ?: 1,
+        );
+
+        if (!$questions) {
+            $message = match ($generator->lastError) {
+                'rate_limit' => 'Batas harian Groq API telah tercapai. Silakan coba lagi besok, atau upgrade akun Groq Anda.',
+                'unauthorized' => 'GROQ_API_KEY tidak valid. Periksa kembali file .env.',
+                'network_error' => 'Gagal terhubung ke Groq API. Periksa koneksi internet Anda.',
+                'api_error' => 'Gagal memproses permintaan ke Groq API. Kurangi jumlah soal per generate menjadi maksimal 5, lalu coba lagi.',
+                'validation_failed' => 'Soal yang dihasilkan tidak valid formatnya. Coba lagi dengan topik yang berbeda.',
+                'not_configured' => 'GROQ_API_KEY belum dikonfigurasi. Tambahkan di file .env',
+                default => 'Gagal menghasilkan soal. Coba lagi dengan topik yang berbeda.',
+            };
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'questions' => $questions,
+        ]);
+    }
+
+    public function saveGeneratedQuestion(Request $request, Course $course, Module $module)
+    {
+        $request->validate([
+            'content' => 'required|string',
+            'options' => 'required|array|size:4',
+            'options.*.content' => 'required|string',
+            'options.*.is_correct' => 'required|boolean',
+            'explanation' => 'nullable|string',
+            'category' => 'nullable|in:mudah,sedang,sulit',
+        ]);
+
+        $question = $module->questions()->create([
+            'content' => $request->content,
+            'category' => $request->category,
+            'explanation' => $request->explanation,
+        ]);
+
+        foreach ($request->options as $option) {
+            $question->options()->create([
+                'content' => $option['content'],
+                'is_correct' => $option['is_correct'],
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Soal berhasil ditambahkan ke modul.',
+        ]);
     }
 
     public function storeQuestion(Request $request, Course $course, Module $module)
