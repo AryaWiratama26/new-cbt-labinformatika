@@ -7,16 +7,70 @@ use App\Models\Module;
 use App\Models\Question;
 use App\Services\QuestionGeneratorService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
-use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 
 class ModuleController extends Controller
 {
+    /**
+     * Verify the payload really is an image instead of trusting its extension.
+     */
+    private function looksLikeImage(string $data): bool
+    {
+        if (strlen($data) < 12) {
+            return false;
+        }
+
+        if (@getimagesizefromstring($data) !== false) {
+            return true;
+        }
+
+        // SVG has no binary header that getimagesizefromstring understands, so match
+        // the root element explicitly instead of letting it through unchecked.
+        $head = ltrim(substr($data, 0, 512));
+
+        return $head !== '' && (
+            stripos($head, '<svg') === 0
+            || stripos($head, '<?xml') === 0 && stripos($head, '<svg') !== false
+        );
+    }
+
+    /**
+     * Return a basename that is not yet taken inside the target directory.
+     */
+    private function uniqueImageBasename(string $basename, string $ext, string $directory): string
+    {
+        if (! file_exists($directory.DIRECTORY_SEPARATOR.$basename)) {
+            return $basename;
+        }
+
+        $stem = pathinfo($basename, PATHINFO_FILENAME);
+
+        return $stem.'_'.substr(uniqid('', true), -8).($ext !== '' ? '.'.$ext : '');
+    }
+
+    /**
+     * Canonical category values are lowercase: mudah, sedang, sulit.
+     * Imports may supply the label in any casing or an English synonym, so both the
+     * CSV and DOCX importers funnel through here to keep stored values predictable.
+     */
+    private function normalizeCategory(?string $category): ?string
+    {
+        $map = [
+            'mudah' => 'mudah', 'easy' => 'mudah', 'medium' => 'sedang',
+            'sedang' => 'sedang', 'sulit' => 'sulit', 'hard' => 'sulit', 'susah' => 'sulit',
+        ];
+
+        $key = strtolower(trim((string) $category));
+
+        return $map[$key] ?? null;
+    }
+
     public function index(Course $course)
     {
         $modules = $course->modules()->withCount('questions')->get();
+
         return view('admin.modules.index', compact('course', 'modules'));
     }
 
@@ -34,6 +88,7 @@ class ModuleController extends Controller
         ]);
 
         $course->modules()->create($request->only('name', 'module_number', 'description'));
+
         return redirect()->route('admin.courses.modules.index', $course)->with('success', 'Modul berhasil ditambahkan.');
     }
 
@@ -58,10 +113,24 @@ class ModuleController extends Controller
 
     public function destroy(Course $course, Module $module)
     {
-        foreach ($module->exams as $exam) {
-            Question::where('module_id', $module->id)
-                ->whereNull('exam_id')
-                ->update(['exam_id' => $exam->id]);
+        $exams = $module->exams()->pluck('id');
+
+        // Questions already owned by an exam stay with that exam. Questions that only
+        // belong to the module must be re-homed first, because deleting the module
+        // would otherwise leave them with no owner at all (module_id is SET NULL).
+        // When several exams share this module they each get an equal share, so no
+        // exam is left silently empty.
+        $unassigned = Question::where('module_id', $module->id)
+            ->whereNull('exam_id')
+            ->orderBy('id')
+            ->get();
+
+        if ($unassigned->isNotEmpty() && $exams->isNotEmpty()) {
+            foreach ($unassigned as $index => $question) {
+                $question->update([
+                    'exam_id' => $exams[$index % $exams->count()],
+                ]);
+            }
         }
 
         foreach ($module->questions as $question) {
@@ -72,7 +141,15 @@ class ModuleController extends Controller
                 }
             }
         }
+
+        // Anything still without an exam has no future use, so remove it (and its
+        // options) instead of leaving an unreachable row behind.
+        Question::where('module_id', $module->id)
+            ->whereNull('exam_id')
+            ->delete();
+
         $module->delete();
+
         return redirect()->route('admin.courses.modules.index', $course)->with('success', 'Modul berhasil dihapus.');
     }
 
@@ -87,7 +164,7 @@ class ModuleController extends Controller
             $zip = new \ZipArchive;
             if ($zip->open($request->file('images_zip')->getRealPath()) === true) {
                 $extractPath = storage_path('app/public/questions');
-                if (!is_dir($extractPath)) {
+                if (! is_dir($extractPath)) {
                     mkdir($extractPath, 0755, true);
                 }
                 // Resolve sekali saja — digunakan sebagai base path acuan
@@ -98,31 +175,43 @@ class ModuleController extends Controller
                     $filename = $zip->getNameIndex($i);
 
                     // BUG #4 fix: ambil basename saja, strip semua subdirektori
-                    
+
                     $basename = basename($filename);
-                    if (!$basename || $basename === '.' || $basename === '..') {
+                    if (! $basename || $basename === '.' || $basename === '..') {
                         continue;
                     }
 
                     // Validasi ekstensi
                     $ext = strtolower(pathinfo($basename, PATHINFO_EXTENSION));
-                    if (!in_array($ext, $allowedExtensions)) {
-                        continue;
-                    }
-
-                    // Destination: flat di dalam $realExtractPath, tanpa subdirektori
-                    $destination = $realExtractPath . DIRECTORY_SEPARATOR . $basename;
-
-                    // Double-check: pastikan destination masih di dalam folder target
-                    // Tambahkan trailing slash di base agar "questions2/" tidak dianggap valid
-                    if (strpos($destination, $realExtractPath . DIRECTORY_SEPARATOR) !== 0) {
+                    if (! in_array($ext, $allowedExtensions)) {
                         continue;
                     }
 
                     $imageData = $zip->getFromIndex($i);
-                    if ($imageData !== false) {
-                        file_put_contents($destination, $imageData);
+                    if ($imageData === false) {
+                        continue;
                     }
+
+                    // A .jpg extension proves nothing about the bytes inside. Verify the
+                    // actual payload so a renamed text file cannot end up served as an image.
+                    if (! $this->looksLikeImage($imageData)) {
+                        continue;
+                    }
+
+                    // Two archive folders can hold the same basename (folder1/potong.png
+                    // and folder2/potong.png). Keeping the original name would make the
+                    // later entry silently overwrite the earlier one, so disambiguate.
+                    $basename = $this->uniqueImageBasename($basename, $ext, $realExtractPath);
+
+                    $destination = $realExtractPath.DIRECTORY_SEPARATOR.$basename;
+
+                    // Double-check: pastikan destination masih di dalam folder target
+                    // Tambahkan trailing slash di base agar "questions2/" tidak dianggap valid
+                    if (strpos($destination, $realExtractPath.DIRECTORY_SEPARATOR) !== 0) {
+                        continue;
+                    }
+
+                    file_put_contents($destination, $imageData);
                 }
                 $zip->close();
             }
@@ -144,49 +233,67 @@ class ModuleController extends Controller
                 ->with('error', 'File CSV kosong atau format tidak valid.');
         }
 
+        $missingImages = 0;
         $importedCount = 0;
         // BUG #20 fix: Gunakan array $header untuk deteksi kolom, jangan $data[0] karena bisa kosong
         $isNewFormat = count($header) >= 8;
 
         foreach ($data as $row) {
-            if (!is_array($row) || count($row) < 6) continue;
+            if (! is_array($row) || count($row) < 6) {
+                continue;
+            }
 
             $pertanyaan = trim($row[0] ?? '');
-            if (!$pertanyaan) continue;
+            if (! $pertanyaan) {
+                continue;
+            }
 
             if ($isNewFormat) {
-                $gambar  = trim($row[1] ?? '');
-                $opsiA   = trim($row[2] ?? '');
-                $opsiB   = trim($row[3] ?? '');
-                $opsiC   = trim($row[4] ?? '');
-                $opsiD   = trim($row[5] ?? '');
-                $kunci   = strtoupper(trim($row[6] ?? 'A'));
+                $gambar = trim($row[1] ?? '');
+                $opsiA = trim($row[2] ?? '');
+                $opsiB = trim($row[3] ?? '');
+                $opsiC = trim($row[4] ?? '');
+                $opsiD = trim($row[5] ?? '');
+                $kunci = strtoupper(trim($row[6] ?? 'A'));
                 $kategori = trim($row[7] ?? '');
             } else {
-                $gambar  = '';
-                $opsiA   = trim($row[1] ?? '');
-                $opsiB   = trim($row[2] ?? '');
-                $opsiC   = trim($row[3] ?? '');
-                $opsiD   = trim($row[4] ?? '');
-                $kunci   = strtoupper(trim($row[5] ?? 'A'));
+                $gambar = '';
+                $opsiA = trim($row[1] ?? '');
+                $opsiB = trim($row[2] ?? '');
+                $opsiC = trim($row[3] ?? '');
+                $opsiD = trim($row[4] ?? '');
+                $kunci = strtoupper(trim($row[5] ?? 'A'));
                 $kategori = '';
             }
 
-            if (!in_array($kunci, ['A', 'B', 'C', 'D'])) {
+            if (! in_array($kunci, ['A', 'B', 'C', 'D'])) {
                 $kunci = 'A';
             }
 
+            // Only keep the image reference when the file actually landed on disk. Otherwise
+            // the row would point at a path that can never resolve (rejected archive
+            // entry, wrong folder, or a plain typo in the CSV).
+            $imagePath = null;
+            if ($gambar !== '') {
+                $candidate = 'questions/'.basename($gambar);
+                if (Storage::disk('public')->exists($candidate)) {
+                    $imagePath = $candidate;
+                } else {
+                    $missingImages++;
+                }
+            }
+
             $question = $module->questions()->create([
-                'content'  => $pertanyaan,
-                'image'    => $gambar ? 'questions/' . $gambar : null,
-                'category' => $kategori ?: null,
+                'content' => $pertanyaan,
+                'image' => $imagePath,
+                'category' => $this->normalizeCategory($kategori),
             ]);
 
             $options = ['A' => $opsiA, 'B' => $opsiB, 'C' => $opsiC, 'D' => $opsiD];
             foreach ($options as $key => $text) {
                 if ($text) {
                     $question->options()->create([
-                        'content'    => $text,
+                        'content' => $text,
                         'is_correct' => ($key === $kunci),
                     ]);
                 }
@@ -194,8 +301,13 @@ class ModuleController extends Controller
             $importedCount++;
         }
 
+        $message = "$importedCount soal berhasil diimpor ke modul.";
+        if ($missingImages > 0) {
+            $message .= " $missingImages gambar tidak ditemukan pada arsip dan tidak dilampirkan.";
+        }
+
         return redirect()->route('admin.courses.modules.show', [$course, $module])
-            ->with('success', "$importedCount soal berhasil diimpor ke modul.");
+            ->with('success', $message);
     }
 
     public function createQuestion(Course $course, Module $module)
@@ -205,7 +317,7 @@ class ModuleController extends Controller
 
     public function generateQuestion(Request $request, Course $course, Module $module, QuestionGeneratorService $generator)
     {
-        if (!$generator->isConfigured()) {
+        if (! $generator->isConfigured()) {
             return response()->json([
                 'success' => false,
                 'message' => 'GROQ_API_KEY belum dikonfigurasi. Tambahkan di file .env',
@@ -225,7 +337,7 @@ class ModuleController extends Controller
             (int) $request->count ?: 1,
         );
 
-        if (!$questions) {
+        if (! $questions) {
             $message = match ($generator->lastError) {
                 'rate_limit' => 'Batas harian Groq API telah tercapai. Silakan coba lagi besok, atau upgrade akun Groq Anda.',
                 'unauthorized' => 'GROQ_API_KEY tidak valid. Periksa kembali file .env.',
@@ -235,6 +347,7 @@ class ModuleController extends Controller
                 'not_configured' => 'GROQ_API_KEY belum dikonfigurasi. Tambahkan di file .env',
                 default => 'Gagal menghasilkan soal. Coba lagi dengan topik yang berbeda.',
             };
+
             return response()->json([
                 'success' => false,
                 'message' => $message,
@@ -280,13 +393,13 @@ class ModuleController extends Controller
     public function storeQuestion(Request $request, Course $course, Module $module)
     {
         $request->validate([
-            'content'        => 'required|string',
-            'image'          => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'options'        => 'required|array|min:4',
-            'options.*'      => 'required|string',
+            'content' => 'required|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'options' => 'required|array|min:4',
+            'options.*' => 'required|string',
             'correct_option' => 'required|in:0,1,2,3',
-            'category'       => 'nullable|in:mudah,sedang,sulit',
-            'explanation'    => 'nullable|string',
+            'category' => 'nullable|in:mudah,sedang,sulit',
+            'explanation' => 'nullable|string',
         ]);
 
         $imagePath = null;
@@ -295,15 +408,15 @@ class ModuleController extends Controller
         }
 
         $question = $module->questions()->create([
-            'content'     => $request->content,
-            'image'       => $imagePath,
-            'category'    => $request->category,
+            'content' => $request->content,
+            'image' => $imagePath,
+            'category' => $request->category,
             'explanation' => $request->explanation,
         ]);
 
         foreach ($request->options as $index => $optionContent) {
             $question->options()->create([
-                'content'    => $optionContent,
+                'content' => $optionContent,
                 'is_correct' => ($index == $request->correct_option),
             ]);
         }
@@ -315,24 +428,25 @@ class ModuleController extends Controller
     public function editQuestion(Course $course, Module $module, Question $question)
     {
         $question->load('options');
+
         return view('admin.modules.edit_question', compact('course', 'module', 'question'));
     }
 
     public function updateQuestion(Request $request, Course $course, Module $module, Question $question)
     {
         $request->validate([
-            'content'        => 'required|string',
-            'image'          => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'options'        => 'required|array|min:4',
-            'options.*'      => 'required|string',
+            'content' => 'required|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'options' => 'required|array|min:4',
+            'options.*' => 'required|string',
             'correct_option' => 'required|in:0,1,2,3',
-            'category'       => 'nullable|in:mudah,sedang,sulit',
-            'explanation'    => 'nullable|string',
+            'category' => 'nullable|in:mudah,sedang,sulit',
+            'explanation' => 'nullable|string',
         ]);
 
         $data = [
-            'content'     => $request->content,
-            'category'    => $request->category,
+            'content' => $request->content,
+            'category' => $request->category,
             'explanation' => $request->explanation,
         ];
 
@@ -364,14 +478,14 @@ class ModuleController extends Controller
             if (isset($existingOptions[$index])) {
                 // Update existing option — preserves the ID and FK references
                 $existingOptions[$index]->update([
-                    'content'    => $optionContent,
-                    'is_correct' => ((int)$index === $correctIdx),
+                    'content' => $optionContent,
+                    'is_correct' => ((int) $index === $correctIdx),
                 ]);
             } else {
                 // Create new option if more options than before
                 $question->options()->create([
-                    'content'    => $optionContent,
-                    'is_correct' => ((int)$index === $correctIdx),
+                    'content' => $optionContent,
+                    'is_correct' => ((int) $index === $correctIdx),
                 ]);
             }
         }
@@ -393,37 +507,53 @@ class ModuleController extends Controller
         // BUG #19 fix: salin file gambar ke path baru agar tidak shared dengan soal asli.
         // Jika soal asli dihapus dan gambar ikut dihapus, soal duplikat tidak ikut kehilangan gambar.
         $newImagePath = null;
+        $imageMissing = false;
+
         if ($question->image) {
-            $sourcePath = storage_path('app/public/' . $question->image);
-            if (file_exists($sourcePath)) {
-                $ext      = pathinfo($question->image, PATHINFO_EXTENSION);
-                $newName  = 'questions/' . uniqid('dup_') . '.' . $ext;
-                $destPath = storage_path('app/public/' . $newName);
-                if (@copy($sourcePath, $destPath)) {
-                    $newImagePath = $newName;
+            $source = ltrim($question->image, '/');
+            $disk = Storage::disk('public');
+
+            if ($disk->exists($source)) {
+                $ext = pathinfo($source, PATHINFO_EXTENSION);
+                $newImagePath = 'questions/'.uniqid('dup_').'.'.$ext;
+
+                if ($disk->copy($source, $newImagePath)) {
+                    // Berhasil disalin ke path baru milik duplikat ini.
                 } else {
-                    // Fallback: kalau copy gagal (e.g. permission), tetap pakai path lama
-                    $newImagePath = $question->image;
+                    // Copy gagal: jangan diam-diam berbagi file dengan soal asli,
+                    // karena menghapus asli akan ikut menghilangkan gambarnya.
+                    $imageMissing = true;
+                    $newImagePath = null;
                 }
+            } else {
+                // Record menunjuk gambar yang sudah tidak ada di disk. Duplikat tidak
+                // bisa membawa gambar, jadi admin harus diberi tahu.
+                $imageMissing = true;
+                $newImagePath = null;
             }
         }
 
         $newQuestion = $module->questions()->create([
-            'content'     => $question->content . ' (copy)',
-            'image'       => $newImagePath,
-            'category'    => $question->category,
+            'content' => $question->content.' (copy)',
+            'image' => $newImagePath,
+            'category' => $question->category,
             'explanation' => $question->explanation,
         ]);
 
         foreach ($question->options as $option) {
             $newQuestion->options()->create([
-                'content'    => $option->content,
+                'content' => $option->content,
                 'is_correct' => $option->is_correct,
             ]);
         }
 
+        $message = 'Soal berhasil digandakan.';
+        if ($imageMissing) {
+            $message .= ' Perhatian: gambar soal asli tidak ditemukan, jadi duplikat dibuat tanpa gambar.';
+        }
+
         return redirect()->route('admin.courses.modules.show', [$course, $module])
-            ->with('success', 'Soal berhasil digandakan.');
+            ->with('success', $message);
     }
 
     public function destroyQuestion(Course $course, Module $module, Question $question)
@@ -436,13 +566,14 @@ class ModuleController extends Controller
         }
 
         $question->delete();
+
         return redirect()->route('admin.courses.modules.show', [$course, $module])
             ->with('success', 'Soal berhasil dihapus.');
     }
 
     public function downloadDocxTemplate()
     {
-        $phpWord = new PhpWord();
+        $phpWord = new PhpWord;
         $section = $phpWord->addSection();
 
         $section->addTitle('Template Soal CBT', 1);
@@ -450,7 +581,7 @@ class ModuleController extends Controller
 
         $section->addText(
             'Ikuti format di bawah ini. Simpan gambar di dalam dokumen (Insert > Pictures). '
-            . 'Gunakan format penomoran "1.", "2." dst untuk setiap soal.',
+            .'Gunakan format penomoran "1.", "2." dst untuk setiap soal.',
             ['italic' => true, 'size' => 10]
         );
         $section->addTextBreak();
@@ -535,7 +666,7 @@ class ModuleController extends Controller
         $relsXml = $zip->getFromName('word/_rels/document.xml.rels');
         $rels = [];
         if ($relsXml !== false) {
-            $relsDom = new \DOMDocument();
+            $relsDom = new \DOMDocument;
             $relsDom->loadXML($relsXml);
             foreach ($relsDom->getElementsByTagNameNS('http://schemas.openxmlformats.org/package/2006/relationships', 'Relationship') as $rel) {
                 $id = $rel->getAttribute('Id');
@@ -551,11 +682,12 @@ class ModuleController extends Controller
         $docXml = $zip->getFromName('word/document.xml');
         if ($docXml === false) {
             $zip->close();
+
             return redirect()->route('admin.courses.modules.show', [$course, $module])
                 ->with('error', 'File .docx tidak valid.');
         }
 
-        $dom = new \DOMDocument();
+        $dom = new \DOMDocument;
         $dom->loadXML($docXml);
         $xpath = new \DOMXPath($dom);
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
@@ -566,7 +698,7 @@ class ModuleController extends Controller
 
         // Extract images from ZIP
         $extractPath = storage_path('app/public/questions');
-        if (!is_dir($extractPath)) {
+        if (! is_dir($extractPath)) {
             mkdir($extractPath, 0755, true);
         }
 
@@ -598,25 +730,25 @@ class ModuleController extends Controller
                         $currentRel = $rels[$embed];
                         // Extract image file
                         $relPath = $rels[$embed];
-                        $sourcePath = 'word/' . $relPath;
+                        $sourcePath = 'word/'.$relPath;
                         $imageData = $zip->getFromName($sourcePath);
-                        if ($imageData !== false) {
+                        if ($imageData !== false && $this->looksLikeImage($imageData)) {
                             $ext = strtolower(pathinfo($relPath, PATHINFO_EXTENSION));
-                            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                            if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'svg'])) {
                                 $ext = 'png';
                             }
-                            $filename = uniqid('docx_') . '.' . $ext;
-                            file_put_contents($extractPath . '/' . $filename, $imageData);
-                            $currentRel = 'questions/' . $filename;
+                            $filename = uniqid('docx_').'.'.$ext;
+                            file_put_contents($extractPath.'/'.$filename, $imageData);
+                            $currentRel = 'questions/'.$filename;
                         }
                     }
                 }
             }
 
             $elements[] = [
-                'text'      => trim($text),
+                'text' => trim($text),
                 'has_image' => $hasImage,
-                'image'     => $currentRel,
+                'image' => $currentRel,
             ];
         }
 
@@ -631,21 +763,24 @@ class ModuleController extends Controller
 
             // Deteksi header soal: "1.", "1)", "1."
             if (preg_match('/^(\d+)[.)]\s*(.+)/', $text, $m)) {
-                if ($current && !empty($current['question'])) {
+                if ($current && ! empty($current['question'])) {
                     $questions[] = $current;
                 }
                 $current = [
-                    'question'    => trim($m[2]),
-                    'options'     => [],
-                    'key'         => '',
-                    'category'    => '',
+                    'question' => trim($m[2]),
+                    'options' => [],
+                    'key' => '',
+                    'category' => '',
                     'explanation' => '',
-                    'image'       => $el['has_image'] ? $el['image'] : null, // BUG #23 fix: capture inline image on header
+                    'image' => $el['has_image'] ? $el['image'] : null, // BUG #23 fix: capture inline image on header
                 ];
+
                 continue;
             }
 
-            if ($current === null) continue;
+            if ($current === null) {
+                continue;
+            }
 
             // BUG #23 fix: Deteksi gambar inline (teks ada + gambar ada) atau standalone
             if ($el['has_image'] && $current['image'] === null) {
@@ -660,32 +795,36 @@ class ModuleController extends Controller
             // Deteksi opsi: "A. ...", "B. ..."
             if (preg_match('/^([A-Da-d])[.)]\s*(.+)/', $text, $m)) {
                 $current['options'][strtoupper($m[1])] = trim($m[2]);
+
                 continue;
             }
 
             // Deteksi kunci: "Kunci: A", "Jawaban: B"
             if (preg_match('/^(Kunci|Jawaban)\s*:\s*([A-Da-d])/i', $text, $m)) {
                 $current['key'] = strtoupper($m[2]);
+
                 continue;
             }
 
             if (preg_match('/^Kategori\s*:\s*(.*)/i', $text, $m)) {
                 $current['category'] = trim($m[1]);
+
                 continue;
             }
 
             if (preg_match('/^Pembahasan\s*:\s*(.*)/i', $text, $m)) {
                 $current['explanation'] = trim($m[1]);
+
                 continue;
             }
 
             // Kalau tidak cocok pola apapun, anggap sebagai lanjutan teks soal
-            if (!empty($text)) {
-                $current['question'] .= "\n" . $text;
+            if (! empty($text)) {
+                $current['question'] .= "\n".$text;
             }
         }
 
-        if ($current && !empty($current['question'])) {
+        if ($current && ! empty($current['question'])) {
             $questions[] = $current;
         }
 
@@ -695,28 +834,22 @@ class ModuleController extends Controller
         }
 
         // Mapping kategori
-        $categoryMap = [
-            'mudah' => 'mudah', 'easy' => 'mudah', 'medium' => 'sedang',
-            'sedang' => 'sedang', 'sulit' => 'sulit', 'hard' => 'sulit', 'susah' => 'sulit',
-        ];
-
         $importedCount = 0;
         foreach ($questions as $q) {
-            $cat = strtolower(trim($q['category']));
-            $category = isset($categoryMap[$cat]) ? $categoryMap[$cat] : null;
+            $category = $this->normalizeCategory($q['category']);
 
             $question = $module->questions()->create([
-                'content'     => $q['question'],
-                'image'       => $q['image'],
-                'category'    => $category,
+                'content' => $q['question'],
+                'image' => $q['image'],
+                'category' => $category,
                 'explanation' => $q['explanation'] ?: null,
             ]);
 
             $keyOrder = ['A', 'B', 'C', 'D'];
             foreach ($keyOrder as $letter) {
-                if (isset($q['options'][$letter]) && !empty(trim($q['options'][$letter]))) {
+                if (isset($q['options'][$letter]) && ! empty(trim($q['options'][$letter]))) {
                     $question->options()->create([
-                        'content'    => trim($q['options'][$letter]),
+                        'content' => trim($q['options'][$letter]),
                         'is_correct' => $letter === $q['key'],
                     ]);
                 }

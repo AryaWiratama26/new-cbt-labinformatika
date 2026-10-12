@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use AllowDynamicProperties;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 #[AllowDynamicProperties]
 class Exam extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['title', 'description', 'course_id', 'module_id', 'is_active', 'passing_grade', 'max_attempts', 'max_tab_switches', 'require_fullscreen'];
 
     protected $casts = [

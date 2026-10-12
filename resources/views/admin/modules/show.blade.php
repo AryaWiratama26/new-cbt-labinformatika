@@ -98,11 +98,9 @@
                                         {{ $questions->firstItem() + $loop->index }}
                                     </span>
                                     @if($question->category)
-                                        <span class="px-2 py-0.5 text-xs rounded-full font-medium
-                                            {{ $question->category === 'mudah' ? 'bg-green-100 text-green-700' : '' }}
-                                            {{ $question->category === 'sedang' ? 'bg-yellow-100 text-yellow-700' : '' }}
-                                            {{ $question->category === 'sulit' ? 'bg-red-100 text-red-700' : '' }}">
-                                            {{ ucfirst($question->category) }}
+                                        @php($badge = ['mudah' => 'bg-green-100 text-green-700', 'sedang' => 'bg-yellow-100 text-yellow-700', 'sulit' => 'bg-red-100 text-red-700'][strtolower($question->category)] ?? 'bg-gray-100 text-gray-700')
+                                        <span class="px-2 py-0.5 text-xs rounded-full font-medium {{ $badge }}">
+                                            {{ ucfirst(strtolower($question->category)) }}
                                         </span>
                                     @endif
                                 </div>

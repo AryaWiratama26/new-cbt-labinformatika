@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ExamSession extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['user_id', 'exam_id', 'started_at', 'finished_at', 'score', 'attempt_number', 'tab_switches'];
 
     protected $casts = [
