@@ -32,6 +32,11 @@
             <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
         </div>
     @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+        </div>
+    @endif
 
     <div class="grid md:grid-cols-3 gap-8">
         <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
@@ -97,6 +102,14 @@
                                     <span class="inline-flex items-center justify-center bg-secondary text-white h-8 w-8 rounded-full font-bold text-sm flex-shrink-0">
                                         {{ $questions->firstItem() + $loop->index }}
                                     </span>
+                                    @if($question->isCoding())
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-secondary/10 text-secondary">
+                                            <i class="ph-fill ph-code"></i> Koding
+                                            @if($question->languageLabel())
+                                                &middot; {{ $question->languageLabel() }}
+                                            @endif
+                                        </span>
+                                    @endif
                                     @if($question->category)
                                         @php($badge = ['mudah' => 'bg-green-100 text-green-700', 'sedang' => 'bg-yellow-100 text-yellow-700', 'sulit' => 'bg-red-100 text-red-700'][strtolower($question->category)] ?? 'bg-gray-100 text-gray-700')
                                         <span class="px-2 py-0.5 text-xs rounded-full font-medium {{ $badge }}">
@@ -131,18 +144,32 @@
 
                             <p class="text-gray-900 font-medium mb-3 whitespace-pre-wrap break-words">{{ $question->content }}</p>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                @foreach($question->options as $option)
-                                    <div class="px-3 py-2 rounded-xl border {{ $option->is_correct ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200' }} flex gap-2 items-center min-w-0">
-                                        @if($option->is_correct)
-                                            <i class="ph-fill ph-check-circle text-green-500 flex-shrink-0"></i>
-                                        @else
-                                            <i class="ph ph-circle text-gray-300 flex-shrink-0"></i>
-                                        @endif
-                                        <span class="text-sm {{ $option->is_correct ? 'text-green-800 font-semibold' : 'text-gray-600' }} break-words">{{ $option->content }}</span>
+                            @if($question->isCoding())
+                                @if($question->starter_code)
+                                    <div class="rounded-xl overflow-hidden border border-gray-200">
+                                        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-800">
+                                            <span class="h-2 w-2 rounded-full bg-red-400"></span>
+                                            <span class="h-2 w-2 rounded-full bg-yellow-400"></span>
+                                            <span class="h-2 w-2 rounded-full bg-green-400"></span>
+                                            <span class="ml-1 text-xs font-medium text-gray-300">Kode Awal</span>
+                                        </div>
+                                        <pre class="p-3 bg-gray-900 text-gray-100 text-xs overflow-x-auto"><code>{{ $question->starter_code }}</code></pre>
                                     </div>
-                                @endforeach
-                            </div>
+                                @endif
+                            @else
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    @foreach($question->options as $option)
+                                        <div class="px-3 py-2 rounded-xl border {{ $option->is_correct ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200' }} flex gap-2 items-center min-w-0">
+                                            @if($option->is_correct)
+                                                <i class="ph-fill ph-check-circle text-green-500 flex-shrink-0"></i>
+                                            @else
+                                                <i class="ph ph-circle text-gray-300 flex-shrink-0"></i>
+                                            @endif
+                                            <span class="text-sm {{ $option->is_correct ? 'text-green-800 font-semibold' : 'text-gray-600' }} break-words">{{ $option->content }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
 
                             @if($question->explanation)
                                 <div class="mt-3 p-3 bg-[#e8eaf5] border border-primary/10 rounded-xl">

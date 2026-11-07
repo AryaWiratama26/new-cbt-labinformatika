@@ -41,4 +41,18 @@ return [
         'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),
     ],
 
+    'wandbox' => [
+        'base_url' => env('WANDBOX_BASE_URL', 'https://wandbox.org/api'),
+        'timeout' => (int) env('WANDBOX_TIMEOUT', 20),
+        // Keys must mirror App\Models\Question::SUPPORTED_LANGUAGES.
+        'compilers' => [
+            'python' => env('WANDBOX_COMPILER_PYTHON', 'cpython-3.12.7'),
+            'php' => env('WANDBOX_COMPILER_PHP', 'php-8.3.12'),
+            'javascript' => env('WANDBOX_COMPILER_JAVASCRIPT', 'nodejs-20.17.0'),
+            'cpp' => env('WANDBOX_COMPILER_CPP', 'gcc-13.2.0'),
+            'java' => env('WANDBOX_COMPILER_JAVA', 'openjdk-jdk-21+35'),
+            'sql' => env('WANDBOX_COMPILER_SQL', 'sqlite-3.46.1'),
+        ],
+    ],
+
 ];

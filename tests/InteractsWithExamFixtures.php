@@ -59,6 +59,17 @@ trait InteractsWithExamFixtures
     }
 
     /**
+     * A coding question attached to $module with starter/solution code.
+     */
+    protected function makeCodingQuestion(Module $module, string $language = 'python', ?string $content = null): Question
+    {
+        return Question::factory()->coding($language)->create([
+            'module_id' => $module->id,
+            'content' => $content ?? ('Soal koding '.($module->questions()->count() + 1).'?'),
+        ]);
+    }
+
+    /**
      * An exam wired to a module, a course and a classroom with a schedule window.
      *
      * @param  array<string, mixed>  $pivot  overrides for the exam_classroom pivot
@@ -87,9 +98,9 @@ trait InteractsWithExamFixtures
     /**
      * A student enrolled in $classroom.
      */
-    protected function makeStudent(?Classroom $classroom = null): User
+    protected function makeStudent(?Classroom $classroom = null, array $attributes = []): User
     {
-        return User::factory()->student($classroom)->create();
+        return User::factory()->student($classroom)->create($attributes);
     }
 
     /**

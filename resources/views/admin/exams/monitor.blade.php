@@ -60,13 +60,15 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse min-w-[700px]">
+            <table class="w-full text-left border-collapse min-w-[980px]">
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-100">
                         <th class="py-4 px-4 font-semibold text-gray-600 text-sm">No</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">NIM</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Nama Mahasiswa</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Status</th>
+                        <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Kamera</th>
+                        <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Event</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Mulai</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Selesai</th>
                         <th class="py-4 px-6 font-semibold text-gray-600 text-sm text-right">Skor</th>
@@ -74,7 +76,7 @@
                 </thead>
                 <tbody id="participants-tbody" class="divide-y divide-gray-100">
                     @forelse($participants as $index => $student)
-                    <tr class="hover:bg-gray-50/50 transition-colors participant-row" data-status="{{ $student->status }}">
+                    <tr class="hover:bg-gray-50/50 transition-colors participant-row" data-status="{{ $student->status }}" data-session-id="{{ $student->session_id ?? '' }}">
                         <td class="py-4 px-4 text-gray-500 text-sm">{{ $index + 1 }}</td>
                         <td class="py-4 px-6 font-mono text-sm text-gray-600">{{ $student->username }}</td>
                         <td class="py-4 px-6 font-medium text-gray-900">{{ $student->name }}</td>
@@ -93,6 +95,28 @@
                                 </span>
                             @endif
                         </td>
+                        <td class="py-4 px-6">
+                            <div class="flex flex-col gap-1.5 text-xs">
+                                <span class="laptop-camera-status inline-flex items-center gap-1.5 {{ $student->laptop_seen_at && $student->laptop_seen_at->greaterThan(now()->subSeconds(30)) ? 'text-green-700' : 'text-gray-500' }}">
+                                    <span class="h-2 w-2 rounded-full {{ $student->laptop_seen_at && $student->laptop_seen_at->greaterThan(now()->subSeconds(30)) ? 'bg-green-500' : 'bg-gray-300' }}"></span>
+                                    Laptop <span class="laptop-camera-time">{{ $student->laptop_seen_at ? $student->laptop_seen_at->format('H:i:s') : '-' }}</span>
+                                </span>
+                                <span class="phone-camera-status inline-flex items-center gap-1.5 {{ $student->phone_seen_at && $student->phone_seen_at->greaterThan(now()->subSeconds(30)) ? 'text-green-700' : 'text-gray-500' }}">
+                                    <span class="h-2 w-2 rounded-full {{ $student->phone_seen_at && $student->phone_seen_at->greaterThan(now()->subSeconds(30)) ? 'bg-green-500' : 'bg-gray-300' }}"></span>
+                                    HP <span class="phone-camera-time">{{ $student->phone_seen_at ? $student->phone_seen_at->format('H:i:s') : '-' }}</span>
+                                </span>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6">
+                            @if($student->session_id)
+                                <button type="button" class="event-button inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-session-id="{{ $student->session_id }}" data-student-name="{{ $student->name }}" onclick="openProctorEvents(this)">
+                                    <i class="ph ph-list-magnifying-glass text-base"></i>
+                                    <span class="event-count">{{ $student->proctor_event_count }}</span>
+                                </button>
+                            @else
+                                <span class="text-xs text-gray-400">-</span>
+                            @endif
+                        </td>
                         <td class="py-4 px-6 text-sm text-gray-500">
                             {{ $student->started_at ? $student->started_at->format('H:i:s') : '-' }}
                         </td>
@@ -105,7 +129,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-gray-500">
+                        <td colspan="9" class="py-12 text-center text-gray-500">
                             <div class="inline-flex h-16 w-16 bg-gray-50 rounded-full items-center justify-center text-gray-400 mb-4">
                                 <i class="ph ph-users text-3xl"></i>
                             </div>
@@ -120,8 +144,26 @@
     </div>
 </div>
 
+<div id="proctor-events-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="proctor-events-title">
+    <div class="w-full max-w-xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-secondary">Camera proctoring</p>
+                <h3 id="proctor-events-title" class="mt-1 text-xl font-bold text-gray-900">Event peserta</h3>
+            </div>
+            <button type="button" onclick="closeProctorEvents()" aria-label="Tutup detail event" class="h-10 w-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <i class="ph ph-x text-xl"></i>
+            </button>
+        </div>
+        <div id="proctor-events-list" class="max-h-[60vh] overflow-y-auto p-6">
+            <p class="text-sm text-gray-500">Memuat event...</p>
+        </div>
+    </div>
+</div>
+
 <script>
 let autoRefreshInterval;
+const proctorEventsUrlTemplate = @json(route('admin.proctor.events', ['session' => '__SESSION__']));
 
 function filterTable() {
     const status = document.getElementById('filter-status').value;
@@ -152,10 +194,13 @@ async function refreshData() {
             row.dataset.status = p.status;
 
             row.querySelector('td:nth-child(4)').innerHTML = p.status_badge;
-            row.querySelector('td:nth-child(5)').textContent = p.started_at;
-            row.querySelector('td:nth-child(6)').textContent = p.finished_at;
+            updateCameraStatus(row, p);
+            const eventCount = row.querySelector('.event-count');
+            if (eventCount) eventCount.textContent = p.proctor_event_count;
+            row.querySelector('td:nth-child(7)').textContent = p.started_at;
+            row.querySelector('td:nth-child(8)').textContent = p.finished_at;
 
-            const scoreTd = row.querySelector('td:nth-child(7)');
+            const scoreTd = row.querySelector('td:nth-child(9)');
             scoreTd.textContent = p.score;
             scoreTd.className = 'py-4 px-6 text-right font-bold text-sm ' + p.score_class;
         });
@@ -172,6 +217,81 @@ async function refreshData() {
         // silent
     }
 }
+
+function updateCameraStatus(row, participant) {
+    const cameras = [
+        { selector: '.laptop-camera-status', online: participant.laptop_online, time: participant.laptop_seen_at },
+        { selector: '.phone-camera-status', online: participant.phone_online, time: participant.phone_seen_at },
+    ];
+
+    cameras.forEach(camera => {
+        const status = row.querySelector(camera.selector);
+        if (!status) return;
+        const dot = status.querySelector('span');
+        status.classList.toggle('text-green-700', camera.online);
+        status.classList.toggle('text-gray-500', !camera.online);
+        dot.classList.toggle('bg-green-500', camera.online);
+        dot.classList.toggle('bg-gray-300', !camera.online);
+        status.querySelector(camera.selector === '.laptop-camera-status' ? '.laptop-camera-time' : '.phone-camera-time').textContent = camera.time || '-';
+    });
+}
+
+async function openProctorEvents(button) {
+    const modal = document.getElementById('proctor-events-modal');
+    const list = document.getElementById('proctor-events-list');
+    const sessionId = button.dataset.sessionId;
+    document.getElementById('proctor-events-title').textContent = 'Event: ' + button.dataset.studentName;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    list.innerHTML = '<p class="text-sm text-gray-500">Memuat event...</p>';
+
+    try {
+        const url = proctorEventsUrlTemplate.replace('__SESSION__', sessionId);
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) throw new Error('Event tidak dapat dimuat');
+        const data = await response.json();
+        list.replaceChildren();
+
+        if (!data.events.length) {
+            list.innerHTML = '<p class="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">Belum ada event kamera.</p>';
+            return;
+        }
+
+        data.events.forEach(event => {
+            const item = document.createElement('div');
+            item.className = 'flex items-start justify-between gap-4 border-b border-gray-100 py-3 last:border-0';
+            const details = document.createElement('div');
+            const title = document.createElement('p');
+            title.className = 'text-sm font-semibold text-gray-900';
+            title.textContent = event.type.replaceAll('_', ' ');
+            const meta = document.createElement('p');
+            meta.className = 'mt-1 text-xs text-gray-500';
+            meta.textContent = `${event.source} · ${event.created_at}`;
+            details.append(title, meta);
+            const badge = document.createElement('span');
+            badge.className = 'rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700';
+            badge.textContent = event.meta ? JSON.stringify(event.meta) : 'tercatat';
+            item.append(details, badge);
+            list.append(item);
+        });
+    } catch (error) {
+        list.innerHTML = '<p class="rounded-xl bg-red-50 p-4 text-sm text-red-700">Gagal memuat event. Coba lagi.</p>';
+    }
+}
+
+function closeProctorEvents() {
+    const modal = document.getElementById('proctor-events-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+document.getElementById('proctor-events-modal')?.addEventListener('click', function (event) {
+    if (event.target === this) closeProctorEvents();
+});
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeProctorEvents();
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     autoRefreshInterval = setInterval(refreshData, 10000);

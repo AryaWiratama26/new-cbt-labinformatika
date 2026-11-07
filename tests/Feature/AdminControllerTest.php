@@ -115,6 +115,26 @@ class AdminControllerTest extends TestCase
             ->assertViewHas('classroomScores', fn ($scores) => $scores->first()->avg_score === 80.0);
     }
 
+    public function test_analytics_counts_pass_fail_against_each_exam_threshold(): void
+    {
+        $classroom = Classroom::factory()->create();
+        $student = $this->makeStudent($classroom);
+        [$course, $module] = $this->makeCourseWithModule();
+
+        $strict = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $strict->update(['passing_grade' => 100, 'title' => 'Ujian Ketat']);
+        $lenient = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $lenient->update(['passing_grade' => 50, 'title' => 'Ujian Longgar']);
+
+        ExamSession::factory()->finished(80)->create(['user_id' => $student->id, 'exam_id' => $strict->id]);
+        ExamSession::factory()->finished(80)->create(['user_id' => $student->id, 'exam_id' => $lenient->id]);
+
+        $this->admin()->get(route('admin.analytics'))
+            ->assertOk()
+            ->assertViewHas('passCount', 1)
+            ->assertViewHas('failCount', 1);
+    }
+
     // ---------------------------------------------------------------- students index
 
     public function test_students_index_lists_only_students(): void
@@ -643,6 +663,18 @@ class AdminControllerTest extends TestCase
         $this->assertDatabaseHas('classrooms', ['id' => $classroom->id]);
     }
 
+    public function test_destroy_classroom_is_blocked_when_exams_are_scheduled(): void
+    {
+        [$course, $module] = $this->makeCourseWithModule();
+        $classroom = Classroom::factory()->create();
+        $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+
+        $this->admin()->delete(route('admin.classrooms.destroy', $classroom))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('classrooms', ['id' => $classroom->id]);
+    }
+
     // ---------------------------------------------------------------- move students
 
     public function test_move_students_form_renders(): void
@@ -765,9 +797,10 @@ class AdminControllerTest extends TestCase
     public function test_classroom_recap_csv_uses_the_last_finished_attempt(): void
     {
         $classroom = Classroom::factory()->create();
-        [, $module] = $this->makeCourseWithModule(2);
+        [$course, $module] = $this->makeCourseWithModule(2);
+        $course->update(['code' => 'IF-TST']);
         $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
-        $student = $this->makeStudent($classroom);
+        $student = $this->makeStudent($classroom, ['username' => '312011111']);
 
         ExamSession::factory()->finished(30)->attempt(1)->create([
             'user_id' => $student->id, 'exam_id' => $exam->id,

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Answer;
 use App\Models\Course;
 use App\Models\Module;
 use App\Models\Question;
 use App\Services\QuestionGeneratorService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
@@ -113,6 +115,12 @@ class ModuleController extends Controller
 
     public function destroy(Course $course, Module $module)
     {
+        $questionIds = Question::where('module_id', $module->id)->pluck('id');
+
+        if ($questionIds->isNotEmpty() && Answer::whereIn('question_id', $questionIds)->exists()) {
+            return redirect()->route('admin.courses.modules.index', $course)->with('error', 'Modul tidak dapat dihapus karena soalnya sudah memiliki jawaban siswa.');
+        }
+
         $exams = $module->exams()->pluck('id');
 
         // Questions already owned by an exam stay with that exam. Questions that only
@@ -235,73 +243,87 @@ class ModuleController extends Controller
 
         $missingImages = 0;
         $importedCount = 0;
+        $errorRows = 0;
         // BUG #20 fix: Gunakan array $header untuk deteksi kolom, jangan $data[0] karena bisa kosong
         $isNewFormat = count($header) >= 8;
 
-        foreach ($data as $row) {
-            if (! is_array($row) || count($row) < 6) {
-                continue;
-            }
+        $importedCount = DB::transaction(function () use ($data, $isNewFormat, $module, &$missingImages, &$errorRows) {
+            $count = 0;
 
-            $pertanyaan = trim($row[0] ?? '');
-            if (! $pertanyaan) {
-                continue;
-            }
+            foreach ($data as $row) {
+                if (! is_array($row) || count($row) < 6) {
+                    continue;
+                }
 
-            if ($isNewFormat) {
-                $gambar = trim($row[1] ?? '');
-                $opsiA = trim($row[2] ?? '');
-                $opsiB = trim($row[3] ?? '');
-                $opsiC = trim($row[4] ?? '');
-                $opsiD = trim($row[5] ?? '');
-                $kunci = strtoupper(trim($row[6] ?? 'A'));
-                $kategori = trim($row[7] ?? '');
-            } else {
-                $gambar = '';
-                $opsiA = trim($row[1] ?? '');
-                $opsiB = trim($row[2] ?? '');
-                $opsiC = trim($row[3] ?? '');
-                $opsiD = trim($row[4] ?? '');
-                $kunci = strtoupper(trim($row[5] ?? 'A'));
-                $kategori = '';
-            }
+                $pertanyaan = trim($row[0] ?? '');
+                if (! $pertanyaan) {
+                    continue;
+                }
 
-            if (! in_array($kunci, ['A', 'B', 'C', 'D'])) {
-                $kunci = 'A';
-            }
-
-            // Only keep the image reference when the file actually landed on disk. Otherwise
-            // the row would point at a path that can never resolve (rejected archive
-            // entry, wrong folder, or a plain typo in the CSV).
-            $imagePath = null;
-            if ($gambar !== '') {
-                $candidate = 'questions/'.basename($gambar);
-                if (Storage::disk('public')->exists($candidate)) {
-                    $imagePath = $candidate;
+                if ($isNewFormat) {
+                    $gambar = trim($row[1] ?? '');
+                    $opsiA = trim($row[2] ?? '');
+                    $opsiB = trim($row[3] ?? '');
+                    $opsiC = trim($row[4] ?? '');
+                    $opsiD = trim($row[5] ?? '');
+                    $kunci = strtoupper(trim($row[6] ?? ''));
+                    $kategori = trim($row[7] ?? '');
                 } else {
-                    $missingImages++;
+                    $gambar = '';
+                    $opsiA = trim($row[1] ?? '');
+                    $opsiB = trim($row[2] ?? '');
+                    $opsiC = trim($row[3] ?? '');
+                    $opsiD = trim($row[4] ?? '');
+                    $kunci = strtoupper(trim($row[5] ?? ''));
+                    $kategori = '';
                 }
+
+                $options = ['A' => $opsiA, 'B' => $opsiB, 'C' => $opsiC, 'D' => $opsiD];
+                $filled = array_filter($options, fn ($text) => $text !== '');
+
+                if (count($filled) < 2 || ! isset($filled[$kunci])) {
+                    $errorRows++;
+
+                    continue;
+                }
+
+                // Only keep the image reference when the file actually landed on disk. Otherwise
+                // the row would point at a path that can never resolve (rejected archive
+                // entry, wrong folder, or a plain typo in the CSV).
+                $imagePath = null;
+                if ($gambar !== '') {
+                    $candidate = 'questions/'.basename($gambar);
+                    if (Storage::disk('public')->exists($candidate)) {
+                        $imagePath = $candidate;
+                    } else {
+                        $missingImages++;
+                    }
+                }
+
+                $question = $module->questions()->create([
+                    'content' => $pertanyaan,
+                    'image' => $imagePath,
+                    'category' => $this->normalizeCategory($kategori),
+                ]);
+
+                foreach ($options as $key => $text) {
+                    if ($text) {
+                        $question->options()->create([
+                            'content' => $text,
+                            'is_correct' => ($key === $kunci),
+                        ]);
+                    }
+                }
+                $count++;
             }
 
-            $question = $module->questions()->create([
-                'content' => $pertanyaan,
-                'image' => $imagePath,
-                'category' => $this->normalizeCategory($kategori),
-            ]);
-
-            $options = ['A' => $opsiA, 'B' => $opsiB, 'C' => $opsiC, 'D' => $opsiD];
-            foreach ($options as $key => $text) {
-                if ($text) {
-                    $question->options()->create([
-                        'content' => $text,
-                        'is_correct' => ($key === $kunci),
-                    ]);
-                }
-            }
-            $importedCount++;
-        }
+            return $count;
+        });
 
         $message = "$importedCount soal berhasil diimpor ke modul.";
+        if ($errorRows > 0) {
+            $message .= " $errorRows baris dilewati karena opsi/kunci tidak valid.";
+        }
         if ($missingImages > 0) {
             $message .= " $missingImages gambar tidak ditemukan pada arsip dan tidak dilampirkan.";
         }
@@ -371,6 +393,13 @@ class ModuleController extends Controller
             'category' => 'nullable|in:mudah,sedang,sulit',
         ]);
 
+        if (collect($request->options)->where('is_correct', true)->count() !== 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tepat satu opsi harus ditandai benar.',
+            ], 422);
+        }
+
         $question = $module->questions()->create([
             'content' => $request->content,
             'category' => $request->category,
@@ -392,15 +421,10 @@ class ModuleController extends Controller
 
     public function storeQuestion(Request $request, Course $course, Module $module)
     {
-        $request->validate([
-            'content' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'options' => 'required|array|min:4',
-            'options.*' => 'required|string',
-            'correct_option' => 'required|in:0,1,2,3',
-            'category' => 'nullable|in:mudah,sedang,sulit',
-            'explanation' => 'nullable|string',
-        ]);
+        $request->validate($this->questionRules($request));
+
+        $type = $request->input('type', Question::TYPE_MULTIPLE_CHOICE);
+        $isCoding = $type === Question::TYPE_CODING;
 
         $imagePath = null;
         if ($request->hasFile('image')) {
@@ -412,17 +436,45 @@ class ModuleController extends Controller
             'image' => $imagePath,
             'category' => $request->category,
             'explanation' => $request->explanation,
+            'type' => $type,
+            'code_language' => $isCoding ? $request->code_language : null,
+            'starter_code' => $isCoding ? $request->starter_code : null,
+            'solution_code' => $isCoding ? $request->solution_code : null,
         ]);
 
-        foreach ($request->options as $index => $optionContent) {
-            $question->options()->create([
-                'content' => $optionContent,
-                'is_correct' => ($index == $request->correct_option),
-            ]);
+        if (! $isCoding) {
+            foreach ($request->options as $index => $optionContent) {
+                $question->options()->create([
+                    'content' => $optionContent,
+                    'is_correct' => ($index == $request->correct_option),
+                ]);
+            }
         }
 
         return redirect()->route('admin.courses.modules.show', [$course, $module])
             ->with('success', 'Soal berhasil ditambahkan ke modul.');
+    }
+
+    private function questionRules(Request $request): array
+    {
+        $rules = [
+            'content' => 'required|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'category' => 'nullable|in:mudah,sedang,sulit',
+            'explanation' => 'nullable|string',
+            'type' => 'nullable|in:'.Question::TYPE_MULTIPLE_CHOICE.','.Question::TYPE_CODING,
+            'code_language' => 'nullable|required_if:type,'.Question::TYPE_CODING.'|in:'.implode(',', array_keys(Question::SUPPORTED_LANGUAGES)),
+            'starter_code' => 'nullable|string',
+            'solution_code' => 'nullable|string',
+        ];
+
+        if ($request->input('type', Question::TYPE_MULTIPLE_CHOICE) !== Question::TYPE_CODING) {
+            $rules['options'] = 'required|array|size:4';
+            $rules['options.*'] = 'required|string';
+            $rules['correct_option'] = 'required|in:0,1,2,3';
+        }
+
+        return $rules;
     }
 
     public function editQuestion(Course $course, Module $module, Question $question)
@@ -434,20 +486,19 @@ class ModuleController extends Controller
 
     public function updateQuestion(Request $request, Course $course, Module $module, Question $question)
     {
-        $request->validate([
-            'content' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'options' => 'required|array|min:4',
-            'options.*' => 'required|string',
-            'correct_option' => 'required|in:0,1,2,3',
-            'category' => 'nullable|in:mudah,sedang,sulit',
-            'explanation' => 'nullable|string',
-        ]);
+        $request->validate($this->questionRules($request));
+
+        $type = $request->input('type', Question::TYPE_MULTIPLE_CHOICE);
+        $isCoding = $type === Question::TYPE_CODING;
 
         $data = [
             'content' => $request->content,
             'category' => $request->category,
             'explanation' => $request->explanation,
+            'type' => $type,
+            'code_language' => $isCoding ? $request->code_language : null,
+            'starter_code' => $isCoding ? $request->starter_code : null,
+            'solution_code' => $isCoding ? $request->solution_code : null,
         ];
 
         if ($request->hasFile('image')) {
@@ -468,32 +519,41 @@ class ModuleController extends Controller
 
         $question->update($data);
 
-        // NEW-04 fix: Update options IN-PLACE instead of delete+recreate.
-        // Deleting options would cascade-delete all student answers referencing them.
-        $correctIdx = (int) $request->correct_option;
-        $existingOptions = $question->options()->orderBy('id')->get();
-        $newOptions = collect($request->options)->values();
-
-        foreach ($newOptions as $index => $optionContent) {
-            if (isset($existingOptions[$index])) {
-                // Update existing option — preserves the ID and FK references
-                $existingOptions[$index]->update([
-                    'content' => $optionContent,
-                    'is_correct' => ((int) $index === $correctIdx),
-                ]);
-            } else {
-                // Create new option if more options than before
-                $question->options()->create([
-                    'content' => $optionContent,
-                    'is_correct' => ((int) $index === $correctIdx),
-                ]);
+        if ($isCoding) {
+            // Beralih ke tipe coding: hapus opsi lama hanya jika tidak ada jawaban siswa yang merujuknya.
+            // Menghapus opsi yang direferensikan akan cascade-delete jawaban (lihat NEW-04).
+            $referenced = Answer::whereHas('option', fn ($q) => $q->where('question_id', $question->id))->exists();
+            if (! $referenced) {
+                $question->options()->delete();
             }
-        }
+        } else {
+            // NEW-04 fix: Update options IN-PLACE instead of delete+recreate.
+            // Deleting options would cascade-delete all student answers referencing them.
+            $correctIdx = (int) $request->correct_option;
+            $existingOptions = $question->options()->orderBy('id')->get();
+            $newOptions = collect($request->options)->values();
 
-        // Remove excess old options (if new set has fewer than old)
-        if ($existingOptions->count() > $newOptions->count()) {
-            $keepIds = $existingOptions->take($newOptions->count())->pluck('id');
-            $question->options()->whereNotIn('id', $keepIds)->delete();
+            foreach ($newOptions as $index => $optionContent) {
+                if (isset($existingOptions[$index])) {
+                    // Update existing option — preserves the ID and FK references
+                    $existingOptions[$index]->update([
+                        'content' => $optionContent,
+                        'is_correct' => ((int) $index === $correctIdx),
+                    ]);
+                } else {
+                    // Create new option if more options than before
+                    $question->options()->create([
+                        'content' => $optionContent,
+                        'is_correct' => ((int) $index === $correctIdx),
+                    ]);
+                }
+            }
+
+            // Remove excess old options (if new set has fewer than old)
+            if ($existingOptions->count() > $newOptions->count()) {
+                $keepIds = $existingOptions->take($newOptions->count())->pluck('id');
+                $question->options()->whereNotIn('id', $keepIds)->delete();
+            }
         }
 
         return redirect()->route('admin.courses.modules.show', [$course, $module])
@@ -538,6 +598,10 @@ class ModuleController extends Controller
             'image' => $newImagePath,
             'category' => $question->category,
             'explanation' => $question->explanation,
+            'type' => $question->type,
+            'code_language' => $question->code_language,
+            'starter_code' => $question->starter_code,
+            'solution_code' => $question->solution_code,
         ]);
 
         foreach ($question->options as $option) {
@@ -558,6 +622,11 @@ class ModuleController extends Controller
 
     public function destroyQuestion(Course $course, Module $module, Question $question)
     {
+        if (Answer::where('question_id', $question->id)->exists()) {
+            return redirect()->route('admin.courses.modules.show', [$course, $module])
+                ->with('error', 'Soal tidak dapat dihapus karena sudah memiliki jawaban siswa.');
+        }
+
         if ($question->image) {
             $path = ltrim($question->image, '/');
             if (str_starts_with($path, 'questions/') && Storage::disk('public')->exists($path)) {
@@ -734,8 +803,8 @@ class ModuleController extends Controller
                         $imageData = $zip->getFromName($sourcePath);
                         if ($imageData !== false && $this->looksLikeImage($imageData)) {
                             $ext = strtolower(pathinfo($relPath, PATHINFO_EXTENSION));
-                            if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'svg'])) {
-                                $ext = 'png';
+                            if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                                continue; // SVG dan format lain ditolak seperti import ZIP (risiko stored XSS).
                             }
                             $filename = uniqid('docx_').'.'.$ext;
                             file_put_contents($extractPath.'/'.$filename, $imageData);
@@ -835,29 +904,49 @@ class ModuleController extends Controller
 
         // Mapping kategori
         $importedCount = 0;
-        foreach ($questions as $q) {
-            $category = $this->normalizeCategory($q['category']);
+        $errorRows = 0;
 
-            $question = $module->questions()->create([
-                'content' => $q['question'],
-                'image' => $q['image'],
-                'category' => $category,
-                'explanation' => $q['explanation'] ?: null,
-            ]);
+        DB::transaction(function () use ($questions, $module, &$importedCount, &$errorRows) {
+            foreach ($questions as $q) {
+                $category = $this->normalizeCategory($q['category']);
 
-            $keyOrder = ['A', 'B', 'C', 'D'];
-            foreach ($keyOrder as $letter) {
-                if (isset($q['options'][$letter]) && ! empty(trim($q['options'][$letter]))) {
-                    $question->options()->create([
-                        'content' => trim($q['options'][$letter]),
-                        'is_correct' => $letter === $q['key'],
-                    ]);
+                $filled = array_filter(
+                    ['A', 'B', 'C', 'D'],
+                    fn ($letter) => isset($q['options'][$letter]) && trim((string) $q['options'][$letter]) !== ''
+                );
+
+                if (count($filled) < 2 || ! in_array($q['key'], $filled, true)) {
+                    $errorRows++;
+
+                    continue;
                 }
+
+                $question = $module->questions()->create([
+                    'content' => $q['question'],
+                    'image' => $q['image'],
+                    'category' => $category,
+                    'explanation' => $q['explanation'] ?: null,
+                ]);
+
+                $keyOrder = ['A', 'B', 'C', 'D'];
+                foreach ($keyOrder as $letter) {
+                    if (isset($q['options'][$letter]) && trim((string) $q['options'][$letter]) !== '') {
+                        $question->options()->create([
+                            'content' => trim($q['options'][$letter]),
+                            'is_correct' => $letter === $q['key'],
+                        ]);
+                    }
+                }
+                $importedCount++;
             }
-            $importedCount++;
+        });
+
+        $message = "$importedCount soal berhasil diimpor dari file .docx.";
+        if ($errorRows > 0) {
+            $message .= " $errorRows soal dilewati karena opsi/kunci tidak valid.";
         }
 
         return redirect()->route('admin.courses.modules.show', [$course, $module])
-            ->with('success', "$importedCount soal berhasil diimpor dari file .docx.");
+            ->with('success', $message);
     }
 }

@@ -8,48 +8,51 @@ use Illuminate\Support\Facades\Log;
 class GroqService
 {
     protected string $apiKey;
+
     protected string $baseUrl;
+
     protected string $model;
 
     public ?string $lastError = null;
 
     public function __construct()
     {
-        $this->apiKey = config('services.groq.api_key', '');
-        $this->baseUrl = config('services.groq.base_url', 'https://api.groq.com/openai/v1');
-        $this->model = config('services.groq.model', 'openai/gpt-oss-120b');
+        $this->apiKey = (string) config('services.groq.api_key', '');
+        $this->baseUrl = (string) config('services.groq.base_url', 'https://api.groq.com/openai/v1');
+        $this->model = (string) config('services.groq.model', 'openai/gpt-oss-120b');
     }
 
     public function isConfigured(): bool
     {
-        return !empty($this->apiKey);
+        return ! empty($this->apiKey);
     }
 
-    public function chatJson(array $messages, int $maxTokens = 8192): ?array
+    public function chatJson(array $messages, int $maxTokens = 8192, float $temperature = 0.7, int $timeout = 60): ?array
     {
         $this->lastError = null;
 
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             $this->lastError = 'not_configured';
             Log::warning('GroqService: API key not configured');
+
             return null;
         }
 
         try {
-            $response = Http::timeout(60)
+            $response = Http::timeout($timeout)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
                 ])
-                ->post($this->baseUrl . '/chat/completions', [
+                ->post($this->baseUrl.'/chat/completions', [
                     'model' => $this->model,
                     'messages' => $messages,
-                    'temperature' => 0.7,
+                    'temperature' => $temperature,
                     'max_tokens' => $maxTokens,
                     'response_format' => ['type' => 'json_object'],
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 $status = $response->status();
                 $body = $response->body();
                 Log::error('GroqService: API error', ['status' => $status, 'body' => $body]);
@@ -61,15 +64,17 @@ class GroqService
                 } else {
                     $this->lastError = 'api_error';
                 }
+
                 return null;
             }
 
             $data = $response->json();
             $content = $data['choices'][0]['message']['content'] ?? null;
 
-            if (!$content) {
+            if (! $content) {
                 $this->lastError = 'empty_response';
                 Log::error('GroqService: empty response content');
+
                 return null;
             }
 
@@ -80,6 +85,7 @@ class GroqService
                 Log::error('GroqService: failed to parse JSON response', [
                     'error' => json_last_error_msg(),
                 ]);
+
                 return null;
             }
 
@@ -89,6 +95,7 @@ class GroqService
             Log::error('GroqService: request failed', [
                 'message' => $e->getMessage(),
             ]);
+
             return null;
         }
     }

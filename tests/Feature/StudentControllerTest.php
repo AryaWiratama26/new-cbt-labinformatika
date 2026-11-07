@@ -8,6 +8,8 @@ use App\Models\Exam;
 use App\Models\ExamSession;
 use App\Models\Question;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\InteractsWithExamFixtures;
 use Tests\TestCase;
 
@@ -1232,6 +1234,450 @@ class StudentControllerTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    // ---------------------------------------------------------------- coding
+
+    public function test_attempt_renders_coding_question_with_language(): void
+    {
+        [, $module] = $this->makeCourseWithModule(1);
+        $coding = $this->makeCodingQuestion($module, 'python');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->get(route('student.exams.attempt', $exam))
+            ->assertOk()
+            ->assertViewHas('questions', function ($questions) use ($coding) {
+                $found = $questions->firstWhere('id', $coding->id);
+
+                return $found && $found->isCoding() && $found->code_language === 'python';
+            })
+            ->assertViewHas('codeAnswers', fn ($answers) => $answers === []);
+    }
+
+    public function test_save_answer_stores_coding_text_as_pending(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.save_answer', $exam), [
+            'question_id' => $coding->id,
+            'answer_text' => "print('halo')",
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('answers', [
+            'question_id' => $coding->id,
+            'option_id' => null,
+            'answer_text' => "print('halo')",
+            'grade_status' => Answer::GRADE_PENDING,
+            'score' => null,
+        ]);
+    }
+
+    public function test_save_answer_clears_coding_answer_when_text_is_blank(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => 'lama',
+            'grade_status' => Answer::GRADE_PENDING,
+        ]);
+
+        $this->actingAs($student)->postJson(route('student.exams.save_answer', $exam), [
+            'question_id' => $coding->id,
+            'answer_text' => '',
+        ])->assertOk();
+
+        $this->assertDatabaseCount('answers', 0);
+    }
+
+    public function test_sync_bulk_saves_coding_answers(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'sql');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.sync', $exam), [
+            'answers' => [[
+                'question_id' => $coding->id,
+                'answer_text' => 'SELECT 1;',
+            ]],
+        ])->assertOk()->assertJsonPath('synced', 1);
+
+        $this->assertDatabaseHas('answers', [
+            'question_id' => $coding->id,
+            'answer_text' => 'SELECT 1;',
+            'grade_status' => Answer::GRADE_PENDING,
+        ]);
+    }
+
+    public function test_submit_keeps_grading_pending_when_coding_awaits_manual_score(): void
+    {
+        [, $module] = $this->makeCourseWithModule(1);
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $mcq = $module->questions()->where('type', Question::TYPE_MULTIPLE_CHOICE)->first();
+        $this->answerCorrectly($session, $mcq);
+
+        $this->actingAs($student)->post(route('student.exams.submit', $exam), [
+            'answers_text' => [$coding->id => "print('ok')"],
+        ])->assertRedirect(route('student.dashboard'));
+
+        $session->refresh();
+        $this->assertEquals(50.0, (float) $session->score);
+        $this->assertNull($session->graded_at);
+        $this->assertDatabaseHas('answers', [
+            'question_id' => $coding->id,
+            'answer_text' => "print('ok')",
+            'grade_status' => Answer::GRADE_PENDING,
+        ]);
+    }
+
+    public function test_submit_sets_graded_at_when_no_coding_is_pending(): void
+    {
+        [, $module] = $this->makeCourseWithModule(2);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->post(route('student.exams.submit', $exam))
+            ->assertRedirect(route('student.dashboard'));
+
+        $this->assertNotNull($session->fresh()->graded_at);
+    }
+
+    public function test_review_shows_coding_answer_and_score(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->finished(80)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id,
+        ]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => 'def jawab(): return 42',
+            'grade_status' => Answer::GRADE_GRADED,
+            'score' => 80,
+        ]);
+
+        $this->actingAs($student)->get(route('student.history.review', $session))
+            ->assertOk()
+            ->assertSee('def jawab(): return 42')
+            ->assertSee('Nilai: 80/100');
+    }
+
+    public function test_review_shows_ai_pending_status_and_hides_feedback(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id, 'graded_at' => null,
+        ]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => 'print(1)',
+            'grade_status' => Answer::GRADE_PENDING,
+            'score' => null,
+        ]);
+
+        $this->actingAs($student)->get(route('student.history.review', $session))
+            ->assertOk()
+            ->assertSee('Sedang dinilai, skor akan muncul otomatis')
+            ->assertDontSee('AI');
+    }
+
+    public function test_review_shows_ai_badge_without_feedback(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->finished(90)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id,
+        ]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => 'print(1)',
+            'grade_status' => Answer::GRADE_GRADED,
+            'score' => 90,
+            'graded_by' => Answer::GRADED_BY_AI,
+            'ai_grade_detail' => ['score' => 90, 'feedback' => 'Rahasia dapur AI.', 'model' => 'x'],
+        ]);
+
+        $this->actingAs($student)->get(route('student.history.review', $session))
+            ->assertOk()
+            ->assertSee('Dinilai admin')
+            ->assertDontSee('Dinilai AI')
+            ->assertDontSee('Rahasia dapur AI.');
+    }
+
+    public function test_grade_status_endpoint_reports_pending_and_graded(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id, 'graded_at' => null,
+        ]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => 'print(1)',
+            'grade_status' => Answer::GRADE_PENDING,
+            'score' => null,
+        ]);
+
+        $this->actingAs($student)->getJson(route('student.history.grade_status', $session))
+            ->assertOk()
+            ->assertJson(['graded' => false, 'pending' => 1]);
+
+        $outsider = $this->makeStudent($this->classroom);
+        $this->actingAs($outsider)->getJson(route('student.history.grade_status', $session))
+            ->assertForbidden();
+    }
+
+    // ---------------------------------------------------------------- run code
+
+    public function test_run_code_returns_sandbox_output(): void
+    {
+        Http::fake([
+            'wandbox.org/*' => Http::response([
+                'status' => '0',
+                'compiler_message' => '',
+                'program_message' => "42\n",
+            ]),
+        ]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'python');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(42)',
+        ])->assertOk()->assertJson([
+            'success' => true,
+            'ok' => true,
+            'output' => "42\n",
+        ]);
+
+        Http::assertSent(fn ($request) => $request['compiler'] === 'cpython-3.12.7'
+            && $request['code'] === 'print(42)'
+            && $request['stdin'] === '');
+    }
+
+    public function test_run_code_flags_when_the_program_is_waiting_for_stdin(): void
+    {
+        Http::fake([
+            'wandbox.org/*' => Http::response([
+                'status' => '1',
+                'program_output' => 'Masukan Sisi: ',
+                'program_error' => 'EOFError: EOF when reading a line',
+                'program_message' => "EOFError: EOF when reading a line\nMasukan Sisi: ",
+            ]),
+        ]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'python');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'sisi = int(input("Masukan Sisi: "))',
+        ])->assertOk()->assertJson([
+            'success' => true,
+            'needs_input' => true,
+            'output' => 'Masukan Sisi:',
+        ]);
+    }
+
+    public function test_run_code_forwards_the_student_stdin(): void
+    {
+        Http::fake([
+            'wandbox.org/*' => Http::response(['status' => '0', 'program_message' => "7\n"]),
+        ]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'python');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(int(input()) + 2)',
+            'stdin' => '5',
+        ])->assertOk()->assertJson(['ok' => true, 'output' => "7\n"]);
+
+        Http::assertSent(fn ($request) => $request['stdin'] === '5');
+    }
+
+    public function test_run_code_reports_compile_errors(): void
+    {
+        Http::fake([
+            'wandbox.org/*' => Http::response([
+                'status' => '1',
+                'compiler_message' => "prog.java:1: error: ';' expected",
+                'program_message' => '',
+            ]),
+        ]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'java');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'class Main { }',
+        ])->assertOk()->assertJson([
+            'ok' => false,
+        ])->assertJsonPath('compile_output', "prog.java:1: error: ';' expected");
+    }
+
+    public function test_run_code_uses_the_question_language_not_client_input(): void
+    {
+        Http::fake(['wandbox.org/*' => Http::response(['status' => '0', 'program_message' => ''])]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'sql');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'language' => 'python',
+            'code' => 'SELECT 1;',
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['compiler'] === 'sqlite-3.46.1');
+    }
+
+    public function test_run_code_reports_sandbox_failures_gracefully(): void
+    {
+        Http::fake(['wandbox.org/*' => Http::response('boom', 500)]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(1)',
+        ])->assertOk()->assertJson(['ok' => false])
+            ->assertJsonPath('message', 'Code sandbox is unavailable right now. Please try again.');
+    }
+
+    public function test_run_code_rejects_a_multiple_choice_question(): void
+    {
+        Http::fake();
+
+        [, $module] = $this->makeCourseWithModule(1);
+        $mcq = $module->questions()->first();
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $mcq->id,
+            'code' => 'print(1)',
+        ])->assertStatus(400);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_run_code_requires_an_active_session(): void
+    {
+        Http::fake();
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(1)',
+        ])->assertStatus(400);
+    }
+
+    public function test_run_code_is_forbidden_for_students_of_other_classrooms(): void
+    {
+        Http::fake();
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $outsider = $this->makeStudent(Classroom::factory()->create());
+
+        $this->actingAs($outsider)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(1)',
+        ])->assertForbidden();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_run_code_validates_code_payload(): void
+    {
+        Http::fake();
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('code');
+    }
+
     // ---------------------------------------------------------------- history
 
     public function test_history_lists_only_finished_sessions_newest_first(): void
@@ -1306,6 +1752,166 @@ class StudentControllerTest extends TestCase
         ]);
 
         $this->actingAs($student)->get(route('student.history.review', $session))->assertForbidden();
+    }
+
+    public function test_review_session_is_blocked_while_exam_is_running(): void
+    {
+        [, $module] = $this->makeCourseWithModule(2);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id,
+        ]);
+
+        $this->actingAs($student)->get(route('student.history.review', $session))
+            ->assertRedirect(route('student.dashboard'));
+    }
+
+    public function test_save_answer_is_rejected_after_session_finished(): void
+    {
+        [, $module] = $this->makeCourseWithModule(1);
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id,
+        ]);
+
+        $this->actingAs($student)->postJson(route('student.exams.save_answer', $exam), [
+            'question_id' => $coding->id,
+            'answer_text' => 'print(1)',
+        ])->assertStatus(400);
+
+        $this->assertDatabaseCount('answers', 0);
+    }
+
+    public function test_verify_pin_is_forbidden_outside_schedule(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, [
+            'start_time' => now()->addHour(),
+            'end_time' => now()->addHours(3),
+            'pin' => '1234',
+        ]);
+        $student = $this->student();
+
+        $this->actingAs($student)->post(route('student.exams.verify_pin', $exam), ['pin' => '1234'])
+            ->assertForbidden();
+    }
+
+    public function test_run_code_is_throttled(): void
+    {
+        Http::fake(['wandbox.org/*' => Http::response(['status' => '0', 'program_message' => "1\n"])]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'python');
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $payload = ['question_id' => $coding->id, 'code' => 'print(1)'];
+        for ($i = 0; $i < 20; $i++) {
+            $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), $payload)->assertOk();
+        }
+
+        $this->actingAs($student)->postJson(route('student.exams.run_code', $exam), $payload)
+            ->assertStatus(429);
+    }
+
+    public function test_submit_is_blocked_when_phone_camera_is_off(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $exam->update(['camera_phone' => true]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        Cache::put("proctor_pair_pending:{$student->id}:{$exam->id}", 'tok123');
+        Cache::put('proctor_pair:tok123', ['phone_camera_active' => false]);
+
+        $this->actingAs($student)->post(route('student.exams.submit', $exam), [
+            'answers_text' => [$coding->id => 'print(1)'],
+        ])->assertRedirect(route('student.exams.attempt', $exam));
+
+        $this->assertNull($session->fresh()->finished_at);
+    }
+
+    public function test_attempt_is_forbidden_when_classroom_is_deactivated(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $exam->classrooms()->updateExistingPivot($this->classroom->id, ['is_active' => false]);
+        $student = $this->student();
+
+        $this->actingAs($student)->get(route('student.exams.attempt', $exam))->assertForbidden();
+        $this->actingAs($student)->postJson(route('student.exams.save_answer', $exam), [
+            'question_id' => 1,
+        ])->assertForbidden();
+    }
+
+    public function test_attempt_auto_submits_when_tab_limit_reached(): void
+    {
+        [, $module] = $this->makeCourseWithModule(1);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $exam->update(['max_tab_switches' => 3]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id, 'tab_switches' => 3,
+        ]);
+
+        $this->actingAs($student)->get(route('student.exams.attempt', $exam))
+            ->assertRedirect(route('student.dashboard'));
+
+        $this->assertNotNull($session->fresh()->finished_at);
+    }
+
+    public function test_tab_switch_increments_by_delta(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $exam->update(['max_tab_switches' => 10]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->actingAs($student)->postJson(route('student.exams.tab_switch', $exam), ['delta' => 2])
+            ->assertOk()->assertJsonPath('tab_switches', 2);
+
+        $this->actingAs($student)->postJson(route('student.exams.tab_switch', $exam), ['delta' => 3])
+            ->assertOk()->assertJsonPath('tab_switches', 5);
+
+        $this->assertSame(5, $session->fresh()->tab_switches);
+    }
+
+    public function test_submit_deletes_blanked_coding_answer(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $exam = $this->makeExamWithSchedule($module, $this->classroom, ['start_time' => now()]);
+        $student = $this->student();
+
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => 'print(1)',
+            'grade_status' => Answer::GRADE_PENDING,
+            'score' => null,
+        ]);
+
+        $this->actingAs($student)->post(route('student.exams.submit', $exam), [
+            'answers_text' => [$coding->id => '   '],
+        ])->assertRedirect(route('student.dashboard'));
+
+        $this->assertDatabaseMissing('answers', [
+            'exam_session_id' => $session->id, 'question_id' => $coding->id,
+        ]);
     }
 
     // ---------------------------------------------------------------- access

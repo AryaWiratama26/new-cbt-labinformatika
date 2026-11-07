@@ -136,6 +136,23 @@
                     }
                 });
             });
+
+            // Polling status penilaian: muat ulang saat semua sudah dinilai.
+            (function () {
+                if (!document.querySelector('[data-ai-pending]')) return;
+                const url = "{{ route('student.history.grade_status', $examSession) }}";
+                let tries = 0;
+                const timer = setInterval(async () => {
+                    tries++;
+                    if (tries > 60) { clearInterval(timer); return; }
+                    try {
+                        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        if (data.graded) { clearInterval(timer); window.location.reload(); }
+                    } catch (e) { /* coba lagi */ }
+                }, 5000);
+            })();
             </script>
             @endpush
 
@@ -161,40 +178,105 @@
                                     </div>
                                 @endif
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    @foreach($question->options as $option)
-                                        <div class="px-3 py-2 rounded-lg text-sm border flex items-center gap-2
-                                            {{ $option->is_correct ? 'bg-green-100 border-green-300 text-green-800 font-semibold' : '' }}
-                                            {{ $selectedOption && $selectedOption->id === $option->id && !$option->is_correct ? 'bg-red-100 border-red-300 text-red-800 font-semibold' : '' }}
-                                            {{ !$option->is_correct && (!$selectedOption || $selectedOption->id !== $option->id) ? 'bg-white border-gray-200 text-gray-600' : '' }}
-                                        ">
-                                            @if($option->is_correct)
-                                                <i class="ph-fill ph-check-circle text-sm"></i>
-                                            @elseif($selectedOption && $selectedOption->id === $option->id)
-                                                <i class="ph-fill ph-x-circle text-sm"></i>
-                                            @else
-                                                <i class="ph ph-circle text-xs"></i>
+                                @if($question->isCoding())
+                                    @php
+                                        $studentCode = $answer->answer_text ?? null;
+                                        $isGraded = $answer && $answer->grade_status === \App\Models\Answer::GRADE_GRADED && $answer->score !== null;
+                                    @endphp
+                                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-semibold">
+                                            <i class="ph-fill ph-code"></i> Soal Koding
+                                        </span>
+                                        @if($question->languageLabel())
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                                                <i class="ph ph-terminal-window"></i> {{ $question->languageLabel() }}
+                                            </span>
+                                        @endif
+                                        @if($isGraded)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                                <i class="ph-fill ph-check-circle"></i> Nilai: {{ rtrim(rtrim(number_format((float) $answer->score, 2, '.', ''), '0'), '.') }}/100
+                                            </span>
+                                            @if($answer->graded_by === \App\Models\Answer::GRADED_BY_AI || $answer->graded_by === \App\Models\Answer::GRADED_BY_MANUAL)
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
+                                                    <i class="ph ph-user-check"></i> Dinilai admin
+                                                </span>
                                             @endif
-                                            <span>{{ $option->content }}</span>
-                                        </div>
-                                    @endforeach
-                                </div>
-
-                                @if(!$selectedOption)
-                                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                                        <i class="ph ph-minus-circle"></i>
-                                        Tidak dijawab
-                                    </p>
-                                @endif
-
-                                @if(!$isCorrect && $question->explanation)
-                                    <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                                        <p class="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-1">
-                                            <i class="ph ph-lightbulb"></i>
-                                            Pembahasan:
-                                        </p>
-                                        <p class="text-xs text-blue-800">{{ $question->explanation }}</p>
+                                        @elseif($studentCode)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                                                <i class="ph ph-hourglass"></i> Menunggu penilaian
+                                            </span>
+                                        @endif
                                     </div>
+
+                                    @if($studentCode)
+                                        <pre class="p-3 rounded-lg bg-gray-900 text-gray-100 text-xs overflow-x-auto"><code>{{ $studentCode }}</code></pre>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                            <i class="ph ph-minus-circle"></i>
+                                            Tidak dijawab
+                                        </p>
+                                    @endif
+
+                                    @if($answer && $answer->grade_status === \App\Models\Answer::GRADE_PENDING && $studentCode)
+                                        <p class="mt-3 text-xs font-medium text-amber-600 flex items-center gap-1" data-ai-pending>
+                                            <i class="ph ph-hourglass"></i> Sedang dinilai, skor akan muncul otomatis…
+                                        </p>
+                                    @endif
+
+                                    @if($question->solution_code)
+                                        <details class="mt-3 group">
+                                            <summary class="cursor-pointer text-xs font-semibold text-primary flex items-center gap-1">
+                                                <i class="ph ph-key"></i> Lihat kunci / solusi
+                                            </summary>
+                                            <pre class="mt-2 p-3 rounded-lg bg-gray-900 text-gray-100 text-xs overflow-x-auto"><code>{{ $question->solution_code }}</code></pre>
+                                        </details>
+                                    @endif
+
+                                    @if($question->explanation)
+                                        <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                            <p class="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-1">
+                                                <i class="ph ph-lightbulb"></i>
+                                                Pembahasan:
+                                            </p>
+                                            <p class="text-xs text-blue-800">{{ $question->explanation }}</p>
+                                        </div>
+                                    @endif
+                                @else
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        @foreach($question->options as $option)
+                                            <div class="px-3 py-2 rounded-lg text-sm border flex items-center gap-2
+                                                {{ $option->is_correct ? 'bg-green-100 border-green-300 text-green-800 font-semibold' : '' }}
+                                                {{ $selectedOption && $selectedOption->id === $option->id && !$option->is_correct ? 'bg-red-100 border-red-300 text-red-800 font-semibold' : '' }}
+                                                {{ !$option->is_correct && (!$selectedOption || $selectedOption->id !== $option->id) ? 'bg-white border-gray-200 text-gray-600' : '' }}
+                                            ">
+                                                @if($option->is_correct)
+                                                    <i class="ph-fill ph-check-circle text-sm"></i>
+                                                @elseif($selectedOption && $selectedOption->id === $option->id)
+                                                    <i class="ph-fill ph-x-circle text-sm"></i>
+                                                @else
+                                                    <i class="ph ph-circle text-xs"></i>
+                                                @endif
+                                                <span>{{ $option->content }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    @if(!$selectedOption)
+                                        <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                            <i class="ph ph-minus-circle"></i>
+                                            Tidak dijawab
+                                        </p>
+                                    @endif
+
+                                    @if(!$isCorrect && $question->explanation)
+                                        <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                            <p class="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-1">
+                                                <i class="ph ph-lightbulb"></i>
+                                                Pembahasan:
+                                            </p>
+                                            <p class="text-xs text-blue-800">{{ $question->explanation }}</p>
+                                        </div>
+                                    @endif
                                 @endif
                             </div>
                         </div>

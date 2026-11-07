@@ -1,6 +1,116 @@
 {
+  "_code-editor-eDvEXuy5.js": {
+    "file": "assets/code-editor-eDvEXuy5.js",
+    "name": "code-editor",
+    "imports": [
+      "_preload-helper-I4rgV-VL.js"
+    ],
+    "dynamicImports": [
+      "node_modules/@codemirror/lang-python/dist/index.js",
+      "node_modules/@codemirror/lang-php/dist/index.js",
+      "node_modules/@codemirror/lang-javascript/dist/index.js",
+      "node_modules/@codemirror/lang-cpp/dist/index.js",
+      "node_modules/@codemirror/lang-java/dist/index.js",
+      "node_modules/@codemirror/lang-sql/dist/index.js"
+    ]
+  },
+  "_index-BF62zP4C.js": {
+    "file": "assets/index-BF62zP4C.js",
+    "name": "index",
+    "imports": [
+      "_code-editor-eDvEXuy5.js"
+    ]
+  },
+  "_index-DrFt3L-P.js": {
+    "file": "assets/index-DrFt3L-P.js",
+    "name": "index",
+    "imports": [
+      "_code-editor-eDvEXuy5.js"
+    ]
+  },
+  "_preload-helper-I4rgV-VL.js": {
+    "file": "assets/preload-helper-I4rgV-VL.js",
+    "name": "preload-helper"
+  },
+  "node_modules/@codemirror/lang-cpp/dist/index.js": {
+    "file": "assets/index-C5TgrxxP.js",
+    "name": "index",
+    "src": "node_modules/@codemirror/lang-cpp/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DrFt3L-P.js",
+      "_code-editor-eDvEXuy5.js",
+      "_preload-helper-I4rgV-VL.js"
+    ]
+  },
+  "node_modules/@codemirror/lang-java/dist/index.js": {
+    "file": "assets/index-BaVWLDzd.js",
+    "name": "index",
+    "src": "node_modules/@codemirror/lang-java/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DrFt3L-P.js",
+      "_code-editor-eDvEXuy5.js",
+      "_preload-helper-I4rgV-VL.js"
+    ]
+  },
+  "node_modules/@codemirror/lang-javascript/dist/index.js": {
+    "file": "assets/index-gg3BSrVg.js",
+    "name": "index",
+    "src": "node_modules/@codemirror/lang-javascript/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DrFt3L-P.js",
+      "_code-editor-eDvEXuy5.js",
+      "_index-BF62zP4C.js",
+      "_preload-helper-I4rgV-VL.js"
+    ]
+  },
+  "node_modules/@codemirror/lang-php/dist/index.js": {
+    "file": "assets/index-B5Ysmscd.js",
+    "name": "index",
+    "src": "node_modules/@codemirror/lang-php/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DrFt3L-P.js",
+      "_code-editor-eDvEXuy5.js",
+      "node_modules/@codemirror/lang-javascript/dist/index.js",
+      "_preload-helper-I4rgV-VL.js",
+      "_index-BF62zP4C.js"
+    ]
+  },
+  "node_modules/@codemirror/lang-python/dist/index.js": {
+    "file": "assets/index-CYt6e_r3.js",
+    "name": "index",
+    "src": "node_modules/@codemirror/lang-python/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DrFt3L-P.js",
+      "_code-editor-eDvEXuy5.js",
+      "_index-BF62zP4C.js",
+      "_preload-helper-I4rgV-VL.js"
+    ]
+  },
+  "node_modules/@codemirror/lang-sql/dist/index.js": {
+    "file": "assets/index-CS_YPCyz.js",
+    "name": "index",
+    "src": "node_modules/@codemirror/lang-sql/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_code-editor-eDvEXuy5.js",
+      "_index-DrFt3L-P.js",
+      "_index-BF62zP4C.js",
+      "_preload-helper-I4rgV-VL.js"
+    ]
+  },
+  "node_modules/@mediapipe/tasks-vision/vision_bundle.mjs": {
+    "file": "assets/vision_bundle-CnYJFm9E.js",
+    "name": "vision_bundle",
+    "src": "node_modules/@mediapipe/tasks-vision/vision_bundle.mjs",
+    "isDynamicEntry": true
+  },
   "resources/css/app.css": {
-    "file": "assets/app-Cyqv39Lz.css",
+    "file": "assets/app-CQeGXBWd.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -9,9 +119,40 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CcNNqum8.js",
+    "file": "assets/app-DfwqSCkn.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true
+  },
+  "resources/js/code-editor.js": {
+    "file": "assets/code-editor-2zbcAYL7.js",
+    "name": "code-editor",
+    "src": "resources/js/code-editor.js",
+    "isEntry": true,
+    "imports": [
+      "_preload-helper-I4rgV-VL.js",
+      "_code-editor-eDvEXuy5.js"
+    ]
+  },
+  "resources/js/proctor-laptop.js": {
+    "file": "assets/proctor-laptop-CdBRji0Q.js",
+    "name": "proctor-laptop",
+    "src": "resources/js/proctor-laptop.js",
+    "isEntry": true,
+    "imports": [
+      "_preload-helper-I4rgV-VL.js"
+    ],
+    "dynamicImports": [
+      "node_modules/@mediapipe/tasks-vision/vision_bundle.mjs"
+    ]
+  },
+  "resources/js/proctor-phone.js": {
+    "file": "assets/proctor-phone-CcrKL_zP.js",
+    "name": "proctor-phone",
+    "src": "resources/js/proctor-phone.js",
+    "isEntry": true,
+    "imports": [
+      "node_modules/@mediapipe/tasks-vision/vision_bundle.mjs"
+    ]
   }
 }

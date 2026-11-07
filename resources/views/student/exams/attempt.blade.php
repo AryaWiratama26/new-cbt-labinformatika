@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ujian CBT - {{ $exam->title }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/code-editor.js'])
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #f8fafc; }
@@ -62,6 +62,19 @@
     </div>
     @endif
 
+    @if($exam->camera_proctoring && $exam->camera_phone)
+    <div id="phone-camera-paused-overlay" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-950/60 p-6 backdrop-blur-sm" role="alert" aria-live="assertive">
+        <div class="w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
+            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <i class="ph-fill ph-camera-slash text-3xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900">Ujian Dijeda</h3>
+            <p class="mt-3 text-gray-600">Kamera HP terdeteksi dimatikan. Nyalakan kembali kamera HP untuk melanjutkan pengerjaan.</p>
+            <p class="mt-4 text-xs text-gray-500">Halaman akan terbuka otomatis setelah kamera aktif.</p>
+        </div>
+    </div>
+    @endif
+
     <!-- Main Content -->
     <main class="flex-grow flex overflow-hidden max-w-7xl mx-auto w-full" id="attempt-main">
         
@@ -69,7 +82,18 @@
         <div class="flex-grow overflow-y-auto p-6 md:p-8 scroll-smooth" id="questions-container">
             <form id="exam-form" action="{{ route('student.exams.submit', $exam) }}" method="POST">
                 @csrf
-                
+
+                @if(session('error'))
+                    <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3 max-w-3xl mx-auto">
+                        <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
+                    </div>
+                @endif
+                @if(session('success'))
+                    <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3 max-w-3xl mx-auto">
+                        <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
+                    </div>
+                @endif
+
                 <div class="space-y-12 max-w-3xl mx-auto pb-24">
                     @foreach($questions as $index => $question)
                         <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 question-card" id="q-{{ $question->id }}">
@@ -78,6 +102,18 @@
                                     {{ $index + 1 }}
                                 </div>
                                 <div class="flex-grow pt-1.5">
+                                    @if($question->isCoding())
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-semibold">
+                                                <i class="ph-fill ph-code"></i> Soal Koding
+                                            </span>
+                                            @if($question->languageLabel())
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                                                    <i class="ph ph-terminal-window"></i> {{ $question->languageLabel() }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @endif
                                     <p class="text-gray-900 text-lg font-medium leading-relaxed whitespace-pre-wrap">{{ $question->content }}</p>
                                 </div>
                             </div>
@@ -88,17 +124,82 @@
                                 </div>
                             @endif
 
-                            <div class="ml-14 space-y-3">
-                                @foreach($question->options as $option)
-                                    @php
-                                        $isChecked = isset($existingAnswers[$question->id]) && $existingAnswers[$question->id] == $option->id;
-                                    @endphp
-                                    <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-colors hover:bg-gray-50 option-label {{ $isChecked ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-gray-200' }}">
-                                        <input type="radio" name="answers[{{ $question->id }}]" value="{{ $option->id }}" class="w-5 h-5 text-primary border-gray-300 focus:ring-primary focus:ring-2 option-radio" {{ $isChecked ? 'checked' : '' }}>
-                                        <span class="ml-3 text-gray-700">{{ $option->content }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
+                            @if($question->isCoding())
+                                @php
+                                    $codeValue = $existingAnswers[$question->id]
+                                        ?? $codeAnswers[$question->id]
+                                        ?? $question->starter_code
+                                        ?? '';
+                                @endphp
+                                <div class="ml-14">
+                                    <div class="rounded-2xl overflow-hidden border border-gray-800 shadow-sm">
+                                        <div class="flex items-center justify-between bg-gray-900 px-4 py-2.5">
+                                            <div class="flex items-center gap-2">
+                                                <span class="h-2.5 w-2.5 rounded-full bg-red-400"></span>
+                                                <span class="h-2.5 w-2.5 rounded-full bg-yellow-400"></span>
+                                                <span class="h-2.5 w-2.5 rounded-full bg-green-400"></span>
+                                                <span class="ml-2 text-xs font-medium text-gray-300">{{ $question->languageLabel() ?? 'Kode' }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <button type="button" class="run-code-btn text-xs font-semibold text-white bg-secondary hover:bg-secondary/90 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-60 disabled:cursor-wait" data-qid="{{ $question->id }}">
+                                                    <i class="ph-fill ph-play"></i> Jalankan
+                                                </button>
+                                                <button type="button" class="reset-code-btn text-xs font-medium text-gray-400 hover:text-white transition-colors flex items-center gap-1" data-qid="{{ $question->id }}">
+                                                    <i class="ph ph-arrow-counter-clockwise"></i> Reset kode awal
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="code-editor" data-qid="{{ $question->id }}" data-language="{{ $question->code_language }}" data-autosave="true">
+                                            <textarea class="code-input hidden">{{ $codeValue }}</textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="code-output mt-3 rounded-2xl overflow-hidden border border-gray-800" data-qid="{{ $question->id }}">
+                                        <div class="flex items-center justify-between bg-gray-900 px-4 py-2">
+                                            <span class="text-xs font-semibold text-gray-300 flex items-center gap-1">
+                                                <i class="ph ph-terminal-window"></i> Output
+                                            </span>
+                                            <button type="button" class="clear-output-btn text-xs font-medium text-gray-400 hover:text-white transition-colors flex items-center gap-1" data-qid="{{ $question->id }}">
+                                                <i class="ph ph-x"></i> Bersihkan
+                                            </button>
+                                        </div>
+                                        <pre class="output-body bg-gray-950 text-gray-100 text-xs font-mono p-4 overflow-x-auto whitespace-pre-wrap max-h-64">Klik "Jalankan" untuk melihat output di sini.</pre>
+                                        <div class="border-t border-gray-800 bg-gray-900 px-4 py-3">
+                                            <div class="code-input-chips flex flex-wrap items-center gap-1.5 mb-2" data-qid="{{ $question->id }}"></div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" id="stdin-{{ $question->id }}" class="code-input-line flex-grow text-xs font-mono rounded-lg bg-gray-950 text-gray-100 border border-gray-700 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none p-2.5" data-qid="{{ $question->id }}" placeholder="Ketik input program di sini, lalu Enter…" autocomplete="off">
+                                                <button type="button" class="code-input-send text-xs font-semibold text-white bg-secondary hover:bg-secondary/90 px-3 py-2.5 rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap" data-qid="{{ $question->id }}">
+                                                    <i class="ph ph-arrow-elbow-down-left"></i> Kirim
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1.5">Jika program meminta input, ketik nilainya di kotak ini lalu Enter. Kode dijalankan ulang setiap kali Anda mengirim input.</p>
+                                        </div>
+                                    </div>
+
+                                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                        <i class="ph ph-floppy-disk"></i> Kode tersimpan otomatis saat Anda mengetik.
+                                    </p>
+                                    @if($question->code_language === 'java')
+                                        <p class="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                                            <i class="ph ph-info"></i> Java: gunakan <span class="font-mono font-semibold">class Main</span> (tanpa <span class="font-mono">public</span>) agar kode bisa dijalankan.
+                                        </p>
+                                    @endif
+                                    <textarea name="answers_text[{{ $question->id }}]" class="code-submit hidden">{{ $codeValue }}</textarea>
+                                    <script type="application/json" class="code-seed" data-qid="{{ $question->id }}">@json($question->starter_code ?? '')</script>
+                                </div>
+                            @else
+                                <div class="ml-14 space-y-3">
+                                    @foreach($question->options as $option)
+                                        @php
+                                            $isChecked = isset($existingAnswers[$question->id]) && $existingAnswers[$question->id] == $option->id;
+                                        @endphp
+                                        <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-colors hover:bg-gray-50 option-label {{ $isChecked ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-gray-200' }}">
+                                            <input type="radio" name="answers[{{ $question->id }}]" value="{{ $option->id }}" class="w-5 h-5 text-primary border-gray-300 focus:ring-primary focus:ring-2 option-radio" {{ $isChecked ? 'checked' : '' }}>
+                                            <span class="ml-3 text-gray-700">{{ $option->content }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -111,7 +212,8 @@
             <div class="grid grid-cols-5 gap-2">
                 @foreach($questions as $index => $question)
                     @php
-                        $isAnswered = isset($existingAnswers[$question->id]);
+                        $isAnswered = isset($existingAnswers[$question->id])
+                            || (isset($codeAnswers[$question->id]) && trim((string) $codeAnswers[$question->id]) !== '');
                     @endphp
                     <a href="#q-{{ $question->id }}" class="nav-btn flex items-center justify-center h-10 rounded-lg text-sm font-semibold transition-colors border {{ $isAnswered ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary' }}" data-qid="{{ $question->id }}">
                         {{ $index + 1 }}
@@ -163,7 +265,7 @@
                 <button type="button" onclick="closeModal()" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors">
                     <i class="ph ph-x-circle text-lg inline-block mr-1.5 align-middle"></i> Batal
                 </button>
-                <button type="button" onclick="doSubmit()" class="flex-1 py-3.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                <button type="button" id="do-submit-btn" onclick="doSubmit()" class="flex-1 py-3.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait">
                     <i class="ph-fill ph-check-circle text-lg"></i> Kumpulkan
                 </button>
             </div>
@@ -233,8 +335,12 @@
                 catch (e) { console.warn('localStorage full:', e); }
             }
 
-            addAnswer(questionId, optionId) {
-                this.data.answers[questionId] = { option_id: parseInt(optionId), saved_at: Date.now() };
+            addAnswer(questionId, optionId, answerText) {
+                this.data.answers[questionId] = {
+                    option_id: optionId ? parseInt(optionId) : null,
+                    answer_text: typeof answerText === 'string' ? answerText : null,
+                    saved_at: Date.now(),
+                };
                 this._save();
             }
 
@@ -255,7 +361,9 @@
 
             getPendingAnswers() {
                 return Object.entries(this.data.answers).map(([qid, data]) => ({
-                    question_id: parseInt(qid), option_id: data.option_id
+                    question_id: parseInt(qid),
+                    option_id: data.option_id ?? null,
+                    answer_text: data.answer_text ?? null,
                 }));
             }
 
@@ -272,13 +380,15 @@
         // ── Init ──
         const examId = {{ $exam->id }};
         const sessionId = {{ $session->id }};
-        const remainingSeconds = {{ max(0, now()->diffInSeconds($endTime)) }};
+        const remainingSeconds = {{ max(0, $endTime->timestamp - now()->timestamp) }};
         const localStartTime = Date.now();
+        let isSubmitting = false;
 
         const timerElement = document.getElementById('countdown-timer');
         const form = document.getElementById('exam-form');
         const csrfToken = document.querySelector('input[name="_token"]').value;
         const saveUrl = "{{ route('student.exams.save_answer', $exam) }}";
+        const runUrl = "{{ route('student.exams.run_code', $exam) }}";
         const tabSwitchUrl = "{{ route('student.exams.tab_switch', $exam) }}";
         const syncUrl = "{{ route('student.exams.sync', $exam) }}";
         const dashboardUrl = "{{ route('student.dashboard') }}";
@@ -391,8 +501,8 @@
         // ── saveAnswer (offline-resilient) ──
         let pendingSaves = {};  // NEW-15 fix: map instead of single item
 
-        async function saveAnswer(questionId, optionId) {
-            offlineQueue.addAnswer(questionId, optionId);
+        async function saveAnswer(questionId, optionId, answerText = null) {
+            offlineQueue.addAnswer(questionId, optionId, answerText);
             updateNavButton(questionId, 'pending');
             updatePendingBadge();
 
@@ -401,7 +511,7 @@
                 return;
             }
 
-            if (saving) { pendingSaves[questionId] = optionId; return; }
+            if (saving) { pendingSaves[questionId] = { optionId, answerText }; return; }
             saving = true;
             showSaveStatus('saving');
 
@@ -409,7 +519,7 @@
                 const res = await fetch(saveUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                    body: JSON.stringify({ question_id: questionId, option_id: optionId, _token: csrfToken })
+                    body: JSON.stringify({ question_id: questionId, option_id: optionId, answer_text: answerText, _token: csrfToken })
                 });
 
                 if (res.ok) {
@@ -418,6 +528,14 @@
                     showSaveStatus('saved');
                 } else if (res.status === 419) {
                     showSaveStatus('error');
+                } else if (res.status === 403) {
+                    const err = await res.json().catch(() => ({}));
+                    if (err.expired) {
+                        alert('Waktu ujian telah habis. Jawaban Anda akan otomatis dikumpulkan.');
+                        submitForm();
+                        return;
+                    }
+                    showSaveStatus('pending');
                 } else {
                     showSaveStatus('pending');
                 }
@@ -428,13 +546,244 @@
                 // NEW-15 fix: process next pending save from the map
                 const nextKey = Object.keys(pendingSaves)[0];
                 if (nextKey) {
-                    const nextOption = pendingSaves[nextKey];
+                    const next = pendingSaves[nextKey];
                     delete pendingSaves[nextKey];
-                    saveAnswer(nextKey, nextOption);
+                    saveAnswer(nextKey, next.optionId, next.answerText);
                 }
                 updatePendingBadge();
             }
         }
+
+        // ── Code autosave (debounced) ──
+        const codeSaveTimers = {};
+        function saveCodeAnswer(questionId, value) {
+            updateNavButton(questionId, value && value.trim() ? 'pending' : 'unanswered');
+            clearTimeout(codeSaveTimers[questionId]);
+            codeSaveTimers[questionId] = setTimeout(() => saveAnswer(questionId, null, value), 800);
+        }
+        window.CBTSaveCode = saveCodeAnswer;
+
+        // ── Code editor helpers ──
+        function syncCodeInputs() {
+            document.querySelectorAll('.code-submit').forEach((ta) => {
+                const match = ta.name.match(/\[(.*?)\]/);
+                if (!match) return;
+                const editorEl = document.querySelector(`.code-editor[data-qid="${match[1]}"]`);
+                if (editorEl && window.CBTEditor) {
+                    ta.value = window.CBTEditor.getValue(editorEl);
+                }
+            });
+        }
+
+        function submitForm() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+            try {
+                syncCodeInputs();
+            } catch (e) {
+                console.warn('Sinkron kode gagal, lanjut kumpulkan:', e);
+            }
+            try {
+                if (proctorLaptop) {
+                    proctorLaptop.stop();
+                }
+            } catch (e) {
+                console.warn('Stop proctoring gagal, lanjut kumpulkan:', e);
+            }
+            @if($exam->camera_phone)
+            try {
+                if (phoneCameraStatusTimer) clearInterval(phoneCameraStatusTimer);
+            } catch (e) {}
+            @endif
+            form.submit();
+        }
+
+        document.querySelectorAll('.reset-code-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                const qid = this.dataset.qid;
+                const seed = document.querySelector(`.code-seed[data-qid="${qid}"]`);
+                const starter = seed ? JSON.parse(seed.textContent) : '';
+                const editorEl = document.querySelector(`.code-editor[data-qid="${qid}"]`);
+                if (editorEl && window.CBTEditor) {
+                    window.CBTEditor.setValue(editorEl, starter);
+                }
+                saveCodeAnswer(qid, starter);
+            });
+        });
+
+        // ── Run code (Wandbox sandbox, debug only, not saved) ──
+        const OUTPUT_PLACEHOLDER = 'Klik "Jalankan" untuk melihat output di sini.';
+        const INPUT_HINT = '\n\n→ Program minta input. Ketik nilainya di kotak bawah, lalu Enter.';
+        const codeInputs = {};
+        const codeTranscript = {};
+        const codeLastStdout = {};
+        const INPUT_READ_RE = /(\binput\s*\(|scanf|fscanf|fgets\s*\(|\bgets\s*\(|cin\s*>>|std::cin|readline\s*\(|sys\.stdin|process\.stdin|stdin|Scanner\b|System\.in)/i;
+
+        function looksLikeReadsInput(code) {
+            return INPUT_READ_RE.test(code || '');
+        }
+
+        function outputBoxFor(qid) {
+            return document.querySelector(`.code-output[data-qid="${qid}"]`);
+        }
+
+        function inputLineFor(qid) {
+            return document.querySelector(`.code-input-line[data-qid="${qid}"]`);
+        }
+
+        function stdinFor(qid) {
+            return (codeInputs[qid] || []).join('\n');
+        }
+
+        function renderChips(qid) {
+            const wrap = document.querySelector(`.code-input-chips[data-qid="${qid}"]`);
+            if (!wrap) return;
+            wrap.innerHTML = '';
+            const items = codeInputs[qid] || [];
+            if (!items.length) return;
+            items.forEach((val) => {
+                const chip = document.createElement('span');
+                chip.className = 'inline-flex items-center px-2 py-0.5 rounded-md bg-gray-800 text-gray-200 text-xs font-mono max-w-[14rem] truncate';
+                chip.textContent = val;
+                wrap.appendChild(chip);
+            });
+            const clear = document.createElement('button');
+            clear.type = 'button';
+            clear.className = 'text-xs font-medium text-gray-400 hover:text-red-400 transition-colors ml-1';
+            clear.textContent = 'Hapus semua';
+            clear.addEventListener('click', () => {
+                codeInputs[qid] = [];
+                codeTranscript[qid] = '';
+                codeLastStdout[qid] = undefined;
+                renderChips(qid);
+                showOutput(qid, OUTPUT_PLACEHOLDER, false);
+            });
+            wrap.appendChild(clear);
+        }
+
+        function showOutput(qid, text, isError, needsInput = false) {
+            const box = outputBoxFor(qid);
+            if (!box) return;
+            const body = box.querySelector('.output-body');
+            box.classList.remove('hidden');
+            const out = text || (needsInput ? '' : '(tidak ada output)');
+            body.textContent = needsInput ? out + INPUT_HINT : out;
+            body.classList.toggle('text-red-400', !!isError);
+            body.classList.toggle('text-gray-100', !isError);
+            if (needsInput) {
+                const line = inputLineFor(qid);
+                if (line) line.focus();
+            }
+        }
+
+        function submitInput(qid) {
+            const line = inputLineFor(qid);
+            if (!line) return;
+            const value = line.value;
+            if (value === '') return;
+            codeInputs[qid] = codeInputs[qid] || [];
+            codeInputs[qid].push(value);
+            line.value = '';
+            renderChips(qid);
+            runCode(qid, document.querySelector(`.run-code-btn[data-qid="${qid}"]`), value);
+        }
+
+        async function runCode(qid, btn, echoValue) {
+            const editorEl = document.querySelector(`.code-editor[data-qid="${qid}"]`);
+            if (!editorEl || !window.CBTEditor) return;
+
+            const code = window.CBTEditor.getValue(editorEl);
+            const stdin = stdinFor(qid);
+            const original = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> Menjalankan...';
+            }
+            showOutput(qid, 'Menjalankan kode...', false);
+
+            try {
+                const res = await fetch(runUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    body: JSON.stringify({ question_id: qid, code: code, stdin: stdin, _token: csrfToken })
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || data.message) {
+                    codeLastStdout[qid] = undefined;
+                    showOutput(qid, data.message || ('Gagal menjalankan kode (HTTP ' + res.status + ').'), true);
+                    return;
+                }
+
+                if (data.compile_output) {
+                    const combined = data.output ? data.compile_output + '\n' + data.output : data.compile_output;
+                    codeTranscript[qid] = combined;
+                    codeLastStdout[qid] = undefined;
+                    showOutput(qid, combined, !data.ok);
+                    return;
+                }
+
+                const stdout = typeof data.stdout === 'string' ? data.stdout : (data.output || '');
+                const prev = codeLastStdout[qid];
+                let transcript;
+
+                if (echoValue !== undefined && typeof prev === 'string' && stdout.startsWith(prev)) {
+                    transcript = (codeTranscript[qid] || '') + echoValue + '\n' + stdout.slice(prev.length);
+                } else {
+                    transcript = stdout;
+                }
+
+                codeTranscript[qid] = transcript;
+                codeLastStdout[qid] = stdout;
+
+                const providedInput = (codeInputs[qid] || []).length > 0;
+                const needsInput = !!data.needs_input || (!providedInput && looksLikeReadsInput(code));
+                showOutput(qid, transcript, !data.ok && !needsInput, needsInput);
+            } catch (e) {
+                codeLastStdout[qid] = undefined;
+                showOutput(qid, 'Tidak dapat menghubungi server. Periksa koneksi Anda.', true);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                }
+            }
+        }
+
+        document.querySelectorAll('.run-code-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                runCode(this.dataset.qid, this);
+            });
+        });
+
+        document.querySelectorAll('.code-input-line').forEach((line) => {
+            line.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitInput(this.dataset.qid);
+                }
+            });
+        });
+
+        document.querySelectorAll('.code-input-send').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                submitInput(this.dataset.qid);
+            });
+        });
+
+        document.querySelectorAll('.clear-output-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                const box = outputBoxFor(this.dataset.qid);
+                if (!box) return;
+                codeTranscript[this.dataset.qid] = '';
+                codeLastStdout[this.dataset.qid] = undefined;
+                const body = box.querySelector('.output-body');
+                body.textContent = OUTPUT_PLACEHOLDER;
+                body.classList.remove('text-red-400');
+                body.classList.add('text-gray-100');
+            });
+        });
 
         // ── Radio change handler ──
         const radios = document.querySelectorAll('.option-radio');
@@ -466,7 +815,7 @@
                 clearInterval(x);
                 timerElement.innerHTML = "00:00:00";
                 alert('Waktu ujian telah habis! Sistem akan otomatis menyimpan jawaban Anda.');
-                form.submit();
+                submitForm();
                 return;
             }
 
@@ -516,22 +865,59 @@
         }
 
         // ── doSubmit with offline handling ──
-        async function doSubmit() {
-            closeModal();
+        function setDoSubmitLoading(loading) {
+            const btn = document.getElementById('do-submit-btn');
+            if (!btn) return;
+            btn.disabled = loading;
+            btn.innerHTML = loading
+                ? '<i class="ph ph-circle-notch animate-spin text-lg"></i> Mengumpulkan...'
+                : '<i class="ph-fill ph-check-circle text-lg"></i> Kumpulkan';
+        }
 
-            if (offlineQueue.hasPending()) {
-                if (navigator.onLine) {
-                    showSyncModal();
-                    await flushPendingQueue();
-                    hideSyncModal();
-                } else {
-                    offlineQueue.setPendingSubmit(true);
-                    alert('Koneksi terputus. Jawaban akan dikirim otomatis saat koneksi pulih.');
+        function flushWithTimeout(ms) {
+            let timer;
+            const timeout = new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error('sync_timeout')), ms);
+            });
+            return Promise.race([flushPendingQueue(), timeout]).finally(() => clearTimeout(timer));
+        }
+
+        async function doSubmit() {
+            setDoSubmitLoading(true);
+            try {
+                @if($exam->camera_phone)
+                if (typeof phoneCameraPausedState !== 'undefined' && phoneCameraPausedState) {
+                    alert('Kamera HP tidak aktif. Aktifkan kembali kamera HP untuk mengumpulkan ujian.');
                     return;
                 }
-            }
+                @endif
+                closeModal();
 
-            form.submit();
+                if (offlineQueue.hasPending()) {
+                    if (navigator.onLine) {
+                        showSyncModal();
+                        try {
+                            await flushWithTimeout(15000);
+                        } catch (e) {
+                            console.warn('Sinkronisasi gagal/timeout, lanjut kumpulkan:', e);
+                        } finally {
+                            hideSyncModal();
+                        }
+                    } else {
+                        offlineQueue.setPendingSubmit(true);
+                        alert('Koneksi terputus. Jawaban akan dikirim otomatis saat koneksi pulih.');
+                        return;
+                    }
+                }
+
+                submitForm();
+            } catch (e) {
+                console.error('Gagal mengumpulkan ujian:', e);
+                alert('Gagal mengumpulkan ujian. Periksa koneksi Anda lalu coba lagi. Jika berlanjut, hubungi pengawas.');
+            } finally {
+                hideSyncModal();
+                setDoSubmitLoading(false);
+            }
         }
 
         document.getElementById('submit-modal')?.addEventListener('click', function (e) {
@@ -547,6 +933,7 @@
             offlineQueue.incrementTabSwitch();
 
             if (!navigator.onLine) return;
+            if (offlineQueue.isFlushing) return;
 
             const now = Date.now();
             if (now - lastTabReport < 2000) return;
@@ -557,7 +944,7 @@
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                 body: JSON.stringify({
                     _token: csrfToken,
-                    total_switches: serverTabSwitches + offlineQueue.getTabSwitches()
+                    delta: offlineQueue.getTabSwitches()
                 })
             })
             .then(r => r.json())
@@ -569,7 +956,7 @@
 
                 if (typeof maxTabSwitches !== 'undefined' && data.exceeded) {
                     alert('Anda telah meninggalkan halaman ujian terlalu banyak kali.\nUjian akan otomatis dikumpulkan.');
-                    form.submit();
+                    submitForm();
                 } else if (typeof maxTabSwitches !== 'undefined' && serverTabSwitches >= Math.ceil(maxTabSwitches * 0.5) && !tabWarningShown) {
                     tabWarningShown = true;
                     var remaining = maxTabSwitches - serverTabSwitches;
@@ -610,11 +997,11 @@
                     const res = await fetch(syncUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            _token: csrfToken,
-                            answers: pending,
-                            tab_switches: serverTabSwitches + tabSwitches
-                        })
+                    body: JSON.stringify({
+                        _token: csrfToken,
+                        answers: pending,
+                        tab_switch_delta: tabSwitches
+                    })
                     });
 
                     if (res.ok) {
@@ -629,7 +1016,7 @@
 
                         if (data.exceeded) {
                             alert('Batas pindah tab terlampaui. Ujian akan otomatis dikumpulkan.');
-                            form.submit();
+                            submitForm();
                             return;
                         }
                     } else if (res.status === 419) {
@@ -650,7 +1037,7 @@
 
             if (wantsSubmit && offlineQueue.getPendingCount() === 0) {
                 offlineQueue.setPendingSubmit(false);
-                form.submit();
+                submitForm();
             }
 
             offlineQueue.isFlushing = false;
@@ -684,6 +1071,67 @@
             const pendingAnswers = offlineQueue.getPendingAnswers();
             pendingAnswers.forEach(a => updateNavButton(a.question_id, 'pending'));
         })();
+
+        @if($exam->camera_proctoring)
+        // ── Camera Proctoring ──
+        let proctorLaptop = null;
+        @if($exam->camera_phone)
+        let phoneCameraStatusTimer = null;
+        let phoneCameraPausedState = false;
+
+        function setPhoneCameraPaused(paused) {
+            phoneCameraPausedState = !!paused;
+            const overlay = document.getElementById('phone-camera-paused-overlay');
+            if (!overlay) return;
+            overlay.classList.toggle('hidden', !paused);
+            overlay.classList.toggle('flex', paused);
+        }
+
+        async function checkPhoneCameraStatus() {
+            try {
+                const response = await fetch('{{ route("proctor.pair_status", $exam) }}', {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store',
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                setPhoneCameraPaused(!data.paired || data.camera_active === false);
+            } catch (error) {
+                console.warn('Phone camera status check failed', error);
+            }
+        }
+        @endif
+
+        (async function initCameraProctoring() {
+            try {
+                // Import from built asset
+                const module = await import('{{ Vite::asset('resources/js/proctor-laptop.js') }}');
+                const { ProctorLaptop } = module;
+
+                proctorLaptop = new ProctorLaptop({
+                    sessionId: {{ $session->id }},
+                    eventUrl: '{{ route("proctor.event") }}',
+                    csrfToken: csrfToken,
+                });
+
+                const granted = await proctorLaptop.init();
+                if (!granted) {
+                    alert('Gagal mengakses kamera. Silakan refresh halaman dan izinkan kembali.');
+                    window.location.href = '{{ route("student.exams.show", $exam) }}';
+                    return;
+                }
+                @if($exam->camera_phone)
+                await checkPhoneCameraStatus();
+                phoneCameraStatusTimer = setInterval(checkPhoneCameraStatus, 2000);
+                @endif
+
+            } catch (e) {
+                console.error('Failed to init camera proctor:', e);
+                    alert('Proctor kamera gagal dimulai. Ujian tidak dapat dilanjutkan tanpa kamera.');
+                    window.location.href = '{{ route("student.exams.show", $exam) }}';
+            }
+        })();
+        @endif
 
         @if($exam->require_fullscreen)
         // ── Fullscreen Gate + Exit Detection ──

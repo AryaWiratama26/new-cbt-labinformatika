@@ -140,6 +140,36 @@
         </div>
         @endif
 
+        @if($exam->camera_proctoring)
+        <div id="camera-gate" class="mb-6 p-5 rounded-2xl bg-green-50 border border-green-200">
+            <div class="flex items-start gap-3">
+                <div class="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+                    <i class="ph ph-video-camera text-xl"></i>
+                </div>
+                <div class="text-left">
+                    <strong class="text-green-900">Pemantauan Kamera</strong>
+                    <p class="text-sm text-green-700 mt-0.5">Ujian ini menggunakan pemantauan kamera. Klik tombol di bawah untuk memberikan izin kamera.</p>
+                </div>
+            </div>
+            <button type="button" id="camera-consent-btn" onclick="requestCameraAccess()" class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
+                <i class="ph-fill ph-video-camera text-lg"></i> Izinkan Kamera
+            </button>
+            <div id="camera-active-indicator" class="hidden mt-3 p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm font-medium flex items-center gap-2">
+                <i class="ph-fill ph-check-circle text-lg"></i> Kamera siap.
+            </div>
+            @if($exam->camera_phone)
+            <div id="phone-pairing-panel" class="hidden mt-4 pt-4 border-t border-green-200">
+                <p class="text-sm font-semibold text-gray-800">Hubungkan Kamera HP</p>
+                <p class="text-xs text-gray-500 mt-1">Scan QR ini dengan HP. Tombol mulai aktif setelah HP berhasil terhubung.</p>
+                <div id="prep-qr-code" class="flex justify-center my-4 min-h-[220px] items-center"></div>
+                <div id="phone-pairing-status" class="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm flex items-center gap-2">
+                    <i class="ph ph-spinner animate-spin"></i> Menyiapkan QR...
+                </div>
+            </div>
+            @endif
+        </div>
+        @endif
+
         @if($exam->require_fullscreen)
         <div id="fullscreen-gate" class="mb-6 p-5 rounded-2xl bg-blue-50 border border-blue-200">
             <div class="flex items-start gap-3">
@@ -161,7 +191,7 @@
         @endif
         <form action="{{ route('student.exams.start', $exam) }}" method="POST">
             @csrf
-            <button type="submit" id="start-exam-btn" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" {{ $exam->require_fullscreen || $needsPin ? 'disabled' : '' }}>
+            <button type="submit" id="start-exam-btn" class="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-xl font-bold transition-colors text-lg flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" {{ $exam->require_fullscreen || $exam->camera_proctoring || $needsPin ? 'disabled' : '' }}>
                 <i class="ph-fill ph-play-circle"></i> 
                 @if($hasUnfinished)
                     Lanjutkan Pengerjaan
@@ -187,8 +217,103 @@
     </div>
 </div>
 
-@if($exam->require_fullscreen)
 <script>
+@if($exam->camera_proctoring)
+let cameraGranted = false;
+let cameraStream = null;
+@if($exam->camera_phone)
+let phonePaired = false;
+let pairingPoll = null;
+@endif
+
+async function requestCameraAccess() {
+    const btn = document.getElementById('camera-consent-btn');
+    const indicator = document.getElementById('camera-active-indicator');
+    const startBtn = document.getElementById('start-exam-btn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Meminta izin...';
+
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const readyResponse = await fetch('{{ route("proctor.camera_ready", $exam) }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        });
+        if (!readyResponse.ok) throw new Error('Status kamera gagal disimpan');
+        cameraGranted = true;
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+
+        btn.classList.add('hidden');
+        indicator.classList.remove('hidden');
+        @if($exam->camera_phone)
+        preparePhonePairing();
+        @endif
+        checkAllGates();
+    } catch (e) {
+        console.error('Camera permission denied:', e);
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        alert('Izin kamera ditolak. Anda harus memberikan izin kamera untuk mengikuti ujian ini.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph-fill ph-video-camera"></i> Izinkan Kamera';
+    }
+}
+
+@endif
+
+@if($exam->camera_phone)
+async function preparePhonePairing() {
+    const panel = document.getElementById('phone-pairing-panel');
+    const status = document.getElementById('phone-pairing-status');
+    const qrContainer = document.getElementById('prep-qr-code');
+    if (!panel || !status || !qrContainer) return;
+
+    panel.classList.remove('hidden');
+    try {
+        const response = await fetch('{{ route("proctor.pair_token", $exam) }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        });
+        if (!response.ok) throw new Error('Token pairing gagal dibuat');
+        const data = await response.json();
+        const QRCode = await window.qrCodeReady;
+        const canvas = document.createElement('canvas');
+        await QRCode.toCanvas(canvas, data.url, { width: 220, margin: 1 });
+        qrContainer.replaceChildren(canvas);
+        status.innerHTML = '<i class="ph ph-device-mobile"></i> Menunggu HP melakukan scan...';
+        checkPairingStatus();
+    } catch (error) {
+        console.error(error);
+        status.className = 'p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2';
+        status.innerHTML = '<i class="ph ph-warning-circle"></i> QR gagal dibuat. Muat ulang halaman untuk mencoba lagi.';
+    }
+}
+
+async function checkPairingStatus() {
+    try {
+        const response = await fetch('{{ route("proctor.pair_status", $exam) }}');
+        const data = await response.json();
+        if (data.paired) {
+            phonePaired = true;
+            const status = document.getElementById('phone-pairing-status');
+            status.className = 'p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex items-center gap-2';
+            status.innerHTML = '<i class="ph-fill ph-check-circle"></i> Kamera HP terhubung.';
+            if (pairingPoll) clearTimeout(pairingPoll);
+            checkAllGates();
+            return;
+        }
+    } catch (error) {
+        console.warn('Pairing status check failed', error);
+    }
+    pairingPoll = setTimeout(checkPairingStatus, 2000);
+}
+@endif
+
+@if($exam->require_fullscreen)
 function fsActive() {
     return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
 }
@@ -204,31 +329,56 @@ function enterFullscreen() {
     }
 }
 
-        function handleFullscreenChange() {
+function handleFullscreenChange() {
     var isFs = fsActive();
     var gate = document.getElementById('fullscreen-gate');
-    var btn = document.getElementById('start-exam-btn');
     var indicator = document.getElementById('fs-active-indicator');
     var enterBtn = document.getElementById('fs-enter-btn');
     if (!gate) return;
     if (isFs) {
-        if (btn) btn.disabled = false;
         gate.classList.add('hidden');
         if (indicator) indicator.classList.remove('hidden');
         if (enterBtn) enterBtn.classList.add('hidden');
     } else {
-        if (btn) btn.disabled = true;
         gate.classList.remove('hidden');
         if (indicator) indicator.classList.add('hidden');
         if (enterBtn) enterBtn.classList.remove('hidden');
     }
+    checkAllGates();
 }
 
 document.addEventListener('fullscreenchange', handleFullscreenChange);
 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 document.addEventListener('msfullscreenchange', handleFullscreenChange);
-
-if (fsActive()) handleFullscreenChange();
-</script>
 @endif
+
+function checkAllGates() {
+    const startBtn = document.getElementById('start-exam-btn');
+    if (!startBtn) return;
+
+    let canStart = true;
+
+    @if($exam->camera_proctoring)
+    if (!cameraGranted) canStart = false;
+    @endif
+
+    @if($exam->camera_phone)
+    if (!phonePaired) canStart = false;
+    @endif
+
+    @if($exam->require_fullscreen)
+    if (!fsActive()) canStart = false;
+    @endif
+
+    @if($needsPin)
+    canStart = false;
+    @endif
+
+    startBtn.disabled = !canStart;
+}
+
+@if($exam->require_fullscreen)
+if (fsActive()) handleFullscreenChange();
+@endif
+</script>
 @endsection

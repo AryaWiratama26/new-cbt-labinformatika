@@ -100,6 +100,11 @@
                             </td>
                             <td class="py-4 px-6 text-right font-bold {{ $session->score !== null && $session->score >= $exam->passing_grade ? 'text-green-600' : ($session->score !== null ? 'text-red-500' : 'text-gray-400') }}">
                                 {{ $session->score ?? '-' }}
+                                @if($session->has_pending_coding ?? false)
+                                    <span class="block text-xs font-medium text-amber-600 mt-0.5">Perlu dinilai</span>
+                                @elseif(($session->answers ?? collect())->contains(fn ($a) => $a->graded_by === \App\Models\Answer::GRADED_BY_AI))
+                                    <span class="block text-xs font-medium text-blue-600 mt-0.5">Dinilai AI</span>
+                                @endif
                             </td>
                         </tr>
                         @php $first = false; @endphp

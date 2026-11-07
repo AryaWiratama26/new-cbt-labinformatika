@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Classroom;
 use App\Models\Course;
 use App\Models\Exam;
+use App\Models\ExamSession;
 use App\Models\Module;
 use App\Models\Option;
 use App\Models\Question;
@@ -356,6 +358,128 @@ class ModuleControllerTest extends TestCase
     }
 
     /* ------------------------------------------------------------------
+     | Coding questions
+     | ----------------------------------------------------------------- */
+
+    public function test_store_coding_question_persists_code_fields(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+
+        $this->admin()->post(route('admin.courses.modules.questions.store', [$course, $module]), [
+            'type' => 'coding',
+            'content' => 'Tulis fungsi penjumlahan.',
+            'code_language' => 'python',
+            'starter_code' => "def sum(a, b):\n    pass",
+            'solution_code' => "def sum(a, b):\n    return a + b",
+            'category' => 'sulit',
+        ])->assertRedirect(route('admin.courses.modules.show', [$course, $module]));
+
+        $question = Question::where('content', 'Tulis fungsi penjumlahan.')->firstOrFail();
+
+        $this->assertSame(Question::TYPE_CODING, $question->type);
+        $this->assertSame('python', $question->code_language);
+        $this->assertSame("def sum(a, b):\n    pass", $question->starter_code);
+        $this->assertSame("def sum(a, b):\n    return a + b", $question->solution_code);
+        $this->assertSame(0, $question->options()->count());
+    }
+
+    public function test_store_coding_question_requires_language(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+
+        $this->admin()->post(route('admin.courses.modules.questions.store', [$course, $module]), [
+            'type' => 'coding',
+            'content' => 'Soal tanpa bahasa',
+        ])->assertSessionHasErrors('code_language');
+
+        $this->assertDatabaseCount('questions', 0);
+    }
+
+    public function test_store_coding_question_rejects_unsupported_language(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+
+        $this->admin()->post(route('admin.courses.modules.questions.store', [$course, $module]), [
+            'type' => 'coding',
+            'content' => 'Soal bahasa asing',
+            'code_language' => 'cobol',
+        ])->assertSessionHasErrors('code_language');
+    }
+
+    public function test_update_can_switch_a_multiple_choice_question_to_coding(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+        $question = $this->makeQuestionWithOptions($module);
+
+        $this->admin()->put(route('admin.courses.modules.questions.update', [$course, $module, $question]), [
+            'type' => 'coding',
+            'content' => 'Versi koding',
+            'code_language' => 'javascript',
+            'starter_code' => 'function halo() {}',
+        ])->assertRedirect(route('admin.courses.modules.show', [$course, $module]));
+
+        $question->refresh();
+        $this->assertSame(Question::TYPE_CODING, $question->type);
+        $this->assertSame('javascript', $question->code_language);
+        $this->assertSame(0, $question->options()->count());
+    }
+
+    public function test_duplicate_coding_question_copies_code_fields(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+        $question = $this->makeCodingQuestion($module, 'java');
+
+        $this->admin()->post(route('admin.courses.modules.questions.duplicate', [$course, $module, $question]))
+            ->assertRedirect(route('admin.courses.modules.show', [$course, $module]));
+
+        $copy = Question::where('id', '!=', $question->id)->firstOrFail();
+        $this->assertSame(Question::TYPE_CODING, $copy->type);
+        $this->assertSame('java', $copy->code_language);
+        $this->assertSame($question->starter_code, $copy->starter_code);
+        $this->assertSame($question->solution_code, $copy->solution_code);
+    }
+
+    public function test_destroy_question_is_blocked_when_answers_exist(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+        $question = $this->makeQuestionWithOptions($module);
+        $classroom = Classroom::factory()->create();
+        $student = $this->makeStudent($classroom);
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $this->answerCorrectly($session, $question);
+
+        $this->admin()->delete(route('admin.courses.modules.questions.destroy', [$course, $module, $question]))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('questions', ['id' => $question->id]);
+        $this->assertDatabaseHas('answers', ['question_id' => $question->id]);
+    }
+
+    public function test_destroy_module_is_blocked_when_answers_exist(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+        $question = $this->makeQuestionWithOptions($module);
+        $classroom = Classroom::factory()->create();
+        $student = $this->makeStudent($classroom);
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $this->answerCorrectly($session, $question);
+
+        $this->admin()->delete(route('admin.courses.modules.destroy', [$course, $module]))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('modules', ['id' => $module->id]);
+    }
+
+    /* ------------------------------------------------------------------
      | Question update / duplicate / delete
      | ----------------------------------------------------------------- */
 
@@ -628,7 +752,7 @@ class ModuleControllerTest extends TestCase
         $module = Module::factory()->for($course)->create();
 
         $csv = "Pertanyaan,Gambar,Opsi A,Opsi B,Opsi C,Opsi D,Kunci,Kategori\n"
-            ."Gambar soal,gambar.png,Ya,Tidak,Mungkin,Mungkin,Ya,Mudah\n";
+            ."Gambar soal,gambar.png,Ya,Tidak,Mungkin,Mungkin,A,Mudah\n";
 
         try {
             $this->admin()->post(route('admin.courses.modules.import_questions', [$course, $module]), [
@@ -784,19 +908,34 @@ class ModuleControllerTest extends TestCase
         $this->assertDatabaseHas('questions', ['content' => 'Judul soal']);
     }
 
-    public function test_import_questions_falls_back_to_a_for_invalid_answer_key(): void
+    public function test_import_questions_skips_rows_with_invalid_answer_key(): void
     {
         $course = Course::factory()->create();
         $module = Module::factory()->create();
 
-        $csv = "Pertanyaan,Opsi A,Opsi B,Opsi C,Opsi D,Kunci\nKunci ngawur,Satu,Dua,Tiga,Empat,Z\n";
+        $csv = "Pertanyaan,Opsi A,Opsi B,Opsi C,Opsi D,Kunci\nKunci ngawur,Satu,Dua,Tiga,Empat,Z\nSoal valid,A,B,C,D,A\n";
+
+        $this->admin()->post(route('admin.courses.modules.import_questions', [$course, $module]), [
+            'csv_file' => UploadedFile::fake()->createWithContent('soal.csv', $csv),
+        ])->assertSessionHas('success', '1 soal berhasil diimpor ke modul. 1 baris dilewati karena opsi/kunci tidak valid.');
+
+        $this->assertDatabaseMissing('questions', ['content' => 'Kunci ngawur']);
+        $this->assertDatabaseHas('questions', ['content' => 'Soal valid']);
+    }
+
+    public function test_import_questions_skips_rows_with_too_few_options(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->create();
+
+        $csv = "Pertanyaan,Opsi A,Opsi B,Opsi C,Opsi D,Kunci\nCuma satu,,,D,,D\nSoal valid,A,B,C,D,A\n";
 
         $this->admin()->post(route('admin.courses.modules.import_questions', [$course, $module]), [
             'csv_file' => UploadedFile::fake()->createWithContent('soal.csv', $csv),
         ])->assertSessionHasNoErrors();
 
-        $question = Question::where('content', 'Kunci ngawur')->firstOrFail();
-        $this->assertSame('Satu', $question->options()->where('is_correct', true)->value('content'));
+        $this->assertDatabaseMissing('questions', ['content' => 'Cuma satu']);
+        $this->assertDatabaseHas('questions', ['content' => 'Soal valid']);
     }
 
     public function test_import_questions_skips_rows_without_question_text(): void
@@ -838,7 +977,7 @@ class ModuleControllerTest extends TestCase
         $course = Course::factory()->create();
         $module = Module::factory()->create();
 
-        $csv = "Pertanyaan,Opsi A,Opsi B,Opsi C,Opsi D,Kunci\nHanya dua opsi,Ya,,,Tidak,B\n";
+        $csv = "Pertanyaan,Opsi A,Opsi B,Opsi C,Opsi D,Kunci\nHanya dua opsi,Ya,,,Tidak,A\n";
 
         $this->admin()->post(route('admin.courses.modules.import_questions', [$course, $module]), [
             'csv_file' => UploadedFile::fake()->createWithContent('soal.csv', $csv),
@@ -1191,9 +1330,32 @@ class ModuleControllerTest extends TestCase
         $this->assertDatabaseCount('questions', 0);
     }
 
-    /* ------------------------------------------------------------------
-     | Helpers
-     | ----------------------------------------------------------------- */
+    public function test_save_generated_question_requires_exactly_one_correct_option(): void
+    {
+        $course = Course::factory()->create();
+        $module = Module::factory()->for($course)->create();
+
+        $payload = [
+            'content' => 'Soal tanpa kunci',
+            'options' => [
+                ['content' => 'A', 'is_correct' => false],
+                ['content' => 'B', 'is_correct' => false],
+                ['content' => 'C', 'is_correct' => false],
+                ['content' => 'D', 'is_correct' => false],
+            ],
+        ];
+
+        $this->admin()->postJson(route('admin.courses.modules.questions.save_generated', [$course, $module]), $payload)
+            ->assertStatus(422);
+
+        $payload['options'][0]['is_correct'] = true;
+        $payload['options'][1]['is_correct'] = true;
+
+        $this->admin()->postJson(route('admin.courses.modules.questions.save_generated', [$course, $module]), $payload)
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('questions', 0);
+    }
 
     private function uniqueFileName(string $suffix): string
     {

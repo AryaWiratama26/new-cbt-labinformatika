@@ -51,11 +51,11 @@
             new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: {!! json_encode($chartLabels) !!},
+                    labels: @json($chartLabels),
                     datasets: [{
                         label: 'Nilai',
-                        data: {!! json_encode($chartScores) !!},
-                        backgroundColor: {!! json_encode($chartColors) !!},
+                        data: @json($chartScores),
+                        backgroundColor: @json($chartColors),
                         borderRadius: 6,
                         borderSkipped: false,
                     }]

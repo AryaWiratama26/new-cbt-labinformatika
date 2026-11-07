@@ -2,34 +2,35 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Models\Classroom;
+use App\Models\Course;
 use App\Models\Exam;
 use App\Models\ExamSession;
-use App\Models\Course;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
     public function dashboard()
     {
         // BUG #22 fix: Cache dashboard stats selama 60 detik untuk mengurangi ~14 query berat
-        $stats = \Illuminate\Support\Facades\Cache::remember('admin_dashboard_stats', 60, function () {
+        $stats = Cache::remember('admin_dashboard_stats', 60, function () {
             $studentsCount = User::where('role', 'mahasiswa')->count();
             $coursesCount = Course::count();
             $classroomsCount = Classroom::count();
             $examsCount = Exam::count();
 
-            $examsToday = Exam::whereHas('classrooms', fn($q) => $q->whereDate('start_time', today()))->count();
+            $examsToday = Exam::whereHas('classrooms', fn ($q) => $q->whereDate('start_time', today()))->count();
             $activeExams = Exam::where('is_active', true)
-                ->whereHas('classrooms', fn($q) => $q->where('start_time', '<=', now())->where('end_time', '>=', now()))
+                ->whereHas('classrooms', fn ($q) => $q->where('start_time', '<=', now())->where('end_time', '>=', now()))
                 ->count();
 
             $avgScore = ExamSession::whereNotNull('score')->whereNotNull('user_id')->avg('score');
-            
+
             // BUG #11 fix: hanya hitung 1 session per mahasiswa per ujian
             $totalSessions = ExamSession::whereNotNull('finished_at')
                 ->whereNotNull('user_id')
@@ -45,10 +46,10 @@ class AdminController extends Controller
 
             // BUG #13 fix: konsisten boundaries — [0,50), [50,70), [70,85], (85,100]
             $scoreDistribution = [
-                'below50'  => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
-                '50to69'   => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
-                '70to85'   => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
-                'above85'  => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
+                'below50' => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
+                '50to69' => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
+                '70to85' => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
+                'above85' => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
             ];
 
             $recentSessions = ExamSession::with(['user', 'exam'])
@@ -80,7 +81,7 @@ class AdminController extends Controller
     {
         $classrooms = Classroom::withCount('users')->orderBy('name')->get();
 
-        $classroomScores = Classroom::with(['users' => fn($q) => $q->where('role', 'mahasiswa')])
+        $classroomScores = Classroom::with(['users' => fn ($q) => $q->where('role', 'mahasiswa')])
             ->get()
             ->map(function ($c) {
                 $userIds = $c->users->pluck('id');
@@ -88,12 +89,13 @@ class AdminController extends Controller
                     ->whereNotNull('score')
                     ->avg('score');
                 $c->avg_score = $avg ? round($avg, 1) : 0;
+
                 return $c;
             });
 
         $exams = Exam::withCount([
-            'examSessions as passed_count' => fn($q) => $q->whereNotNull('score')->where('score', '>=', DB::raw('exams.passing_grade')),
-            'examSessions as failed_count' => fn($q) => $q->whereNotNull('score')->where('score', '<', DB::raw('exams.passing_grade')),
+            'examSessions as passed_count' => fn ($q) => $q->whereNotNull('score')->where('score', '>=', DB::raw('exams.passing_grade')),
+            'examSessions as failed_count' => fn ($q) => $q->whereNotNull('score')->where('score', '<', DB::raw('exams.passing_grade')),
         ])->orderBy('title')->get();
 
         $dailyTrend = ExamSession::whereNotNull('finished_at')
@@ -115,14 +117,20 @@ class AdminController extends Controller
 
         $scoreDist = [
             'below50' => ExamSession::whereNotNull('score')->where('score', '<', 50)->count(),
-            '50to69'  => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
-            '70to85'  => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
+            '50to69' => ExamSession::whereNotNull('score')->where('score', '>=', 50)->where('score', '<', 70)->count(),
+            '70to85' => ExamSession::whereNotNull('score')->where('score', '>=', 70)->where('score', '<=', 85)->count(),
             'above85' => ExamSession::whereNotNull('score')->where('score', '>', 85)->count(),
         ];
 
         $totalGraded = array_sum($scoreDist);
-        $passCount  = ExamSession::whereNotNull('score')->where('score', '>=', (new Exam)->passing_grade ?? 70)->count();
-        $failCount  = ExamSession::whereNotNull('score')->where('score', '<', (new Exam)->passing_grade ?? 70)->count();
+        $passCount = ExamSession::whereNotNull('exam_sessions.score')
+            ->join('exams', 'exams.id', '=', 'exam_sessions.exam_id')
+            ->whereColumn('exam_sessions.score', '>=', 'exams.passing_grade')
+            ->count();
+        $failCount = ExamSession::whereNotNull('exam_sessions.score')
+            ->join('exams', 'exams.id', '=', 'exam_sessions.exam_id')
+            ->whereColumn('exam_sessions.score', '<', 'exams.passing_grade')
+            ->count();
 
         return view('admin.analytics', compact(
             'classroomScores', 'exams', 'dates', 'scoreDist',
@@ -138,7 +146,7 @@ class AdminController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%");
+                    ->orWhere('username', 'like', "%{$search}%");
             });
         }
         if ($request->filled('classroom_id')) {
@@ -147,6 +155,7 @@ class AdminController extends Controller
 
         if ($request->boolean('ajax')) {
             $students = $query->get(['id', 'username', 'name', 'classroom_id']);
+
             return response()->json($students);
         }
 
@@ -159,6 +168,7 @@ class AdminController extends Controller
     public function createStudent()
     {
         $classrooms = Classroom::all();
+
         return view('admin.students.create', compact('classrooms'));
     }
 
@@ -179,24 +189,29 @@ class AdminController extends Controller
         ]);
 
         // BUG #11 fix: invalidate dashboard cache setelah perubahan data
-        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+        Cache::forget('admin_dashboard_stats');
 
         return redirect()->route('admin.students.index')->with('success', 'Mahasiswa berhasil ditambahkan.');
     }
 
     public function editStudent(User $user)
     {
-        if ($user->role !== 'mahasiswa') abort(403);
+        if ($user->role !== 'mahasiswa') {
+            abort(403);
+        }
         $classrooms = Classroom::all();
+
         return view('admin.students.edit', compact('user', 'classrooms'));
     }
 
     public function updateStudent(Request $request, User $user)
     {
-        if ($user->role !== 'mahasiswa') abort(403);
+        if ($user->role !== 'mahasiswa') {
+            abort(403);
+        }
 
         $request->validate([
-            'nim' => 'required|unique:users,username,' . $user->id,
+            'nim' => 'required|unique:users,username,'.$user->id,
             'name' => 'required|string|max:255',
             'classroom_id' => 'required|exists:classrooms,id',
         ]);
@@ -212,29 +227,33 @@ class AdminController extends Controller
 
     public function resetPassword(User $user)
     {
-        if ($user->role !== 'mahasiswa') abort(403);
+        if ($user->role !== 'mahasiswa') {
+            abort(403);
+        }
         $user->update(['password' => Hash::make($user->username)]);
+
         return redirect()->route('admin.students.index')->with('success', "Password {$user->name} berhasil direset ke NIM.");
     }
 
     public function destroyStudent(User $user)
     {
         // BUG #5 fix: pastikan hanya mahasiswa yang bisa dihapus dari sini
-        
+
         if ($user->role !== 'mahasiswa') {
             abort(403, 'Hanya mahasiswa yang dapat dihapus melalui menu ini.');
         }
 
         // NEW-03 fix: Warn if student has exam data (user_id will be set to NULL via nullOnDelete)
         $hasExamData = ExamSession::where('user_id', $user->id)->exists();
-        
+
         $user->delete();
-        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+        Cache::forget('admin_dashboard_stats');
 
         $message = 'Mahasiswa berhasil dihapus.';
         if ($hasExamData) {
             $message .= ' Data ujian (sesi & nilai) tetap tersimpan untuk keperluan arsip.';
         }
+
         return redirect()->route('admin.students.index')->with('success', $message);
     }
 
@@ -246,8 +265,9 @@ class AdminController extends Controller
         }
         // BUG #5 fix: filter ketat hanya role mahasiswa, jangan sampai admin ikut terhapus
         $deleted = User::whereIn('id', $ids)->where('role', 'mahasiswa')->delete();
-        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
-        return redirect()->back()->with('success', $deleted . ' mahasiswa berhasil dihapus.');
+        Cache::forget('admin_dashboard_stats');
+
+        return redirect()->back()->with('success', $deleted.' mahasiswa berhasil dihapus.');
     }
 
     public function exportStudents(Request $request)
@@ -259,19 +279,19 @@ class AdminController extends Controller
         $students = $query->get();
 
         $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=data_mahasiswa.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename=data_mahasiswa.csv',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $callback = function () use ($students) {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['NIM', 'Nama', 'Kelas']);
-            
+
             $sanitize = function ($value) {
-                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+                return (is_string($value) && preg_match('/^[=\-+\@]/', ltrim($value, " \t\r\n"))) ? "'".$value : $value;
             };
 
             foreach ($students as $s) {
@@ -290,6 +310,7 @@ class AdminController extends Controller
             $query->where('name', 'like', "%{$request->search}%");
         }
         $classrooms = $query->orderBy('name')->paginate(15)->withQueryString();
+
         return view('admin.classrooms', compact('classrooms'));
     }
 
@@ -302,18 +323,20 @@ class AdminController extends Controller
         ]);
 
         Classroom::create($request->only('name', 'academic_year', 'semester'));
+
         return redirect()->route('admin.classrooms')->with('success', 'Kelas berhasil ditambahkan.');
     }
 
     public function updateClassroom(Request $request, Classroom $classroom)
     {
         $request->validate([
-            'name' => 'required|string|max:255|unique:classrooms,name,' . $classroom->id,
+            'name' => 'required|string|max:255|unique:classrooms,name,'.$classroom->id,
             'academic_year' => 'nullable|string|max:20',
             'semester' => 'nullable|in:Ganjil,Genap',
         ]);
 
         $classroom->update($request->only('name', 'academic_year', 'semester'));
+
         return redirect()->route('admin.classrooms')->with('success', 'Kelas berhasil diperbarui.');
     }
 
@@ -322,13 +345,18 @@ class AdminController extends Controller
         if ($classroom->users()->count() > 0) {
             return redirect()->back()->with('error', 'Kelas tidak bisa dihapus karena masih memiliki mahasiswa.');
         }
+        if ($classroom->exams()->exists()) {
+            return redirect()->back()->with('error', 'Kelas tidak bisa dihapus karena masih terpasang pada jadwal ujian.');
+        }
         $classroom->delete();
+
         return redirect()->route('admin.classrooms')->with('success', 'Kelas berhasil dihapus.');
     }
 
     public function moveStudentsForm()
     {
         $classrooms = Classroom::withCount('users')->orderBy('name')->get();
+
         return view('admin.students.move', compact('classrooms'));
     }
 
@@ -346,20 +374,20 @@ class AdminController extends Controller
             ->where('classroom_id', $request->from_classroom_id)
             ->update(['classroom_id' => $request->to_classroom_id]);
 
-        return redirect()->route('admin.classrooms')->with('success', $moved . ' mahasiswa berhasil dipindahkan.');
+        return redirect()->route('admin.classrooms')->with('success', $moved.' mahasiswa berhasil dipindahkan.');
     }
 
     public function downloadStudentTemplate()
     {
         $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=template_mahasiswa.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename=template_mahasiswa.csv',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
-        $columns = array('NIM', 'Nama', 'Kelas');
+        $columns = ['NIM', 'Nama', 'Kelas'];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
@@ -374,11 +402,11 @@ class AdminController extends Controller
     public function downloadQuestionTemplate()
     {
         $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=template_soal.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename=template_soal.csv',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $columns = ['Soal', 'Gambar', 'Pilihan A', 'Pilihan B', 'Pilihan C', 'Pilihan D', 'Kunci Jawaban', 'Kategori'];
@@ -416,23 +444,25 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'File CSV kosong.');
         }
 
-        $importedCount  = 0;
+        $importedCount = 0;
         $duplicateCount = 0;
-        $errorRows      = [];
-        $newClassrooms  = []; // BUG #7 fix: track kelas baru yang dibuat
+        $errorRows = [];
+        $newClassrooms = []; // BUG #7 fix: track kelas baru yang dibuat
 
         foreach ($data as $index => $row) {
-            if (!is_array($row) || count($row) < 3) continue;
+            if (! is_array($row) || count($row) < 3) {
+                continue;
+            }
 
-            $nim   = trim($row[0] ?? '');
-            $nama  = trim($row[1] ?? 'Mahasiswa');
+            $nim = trim($row[0] ?? '');
+            $nama = trim($row[1] ?? 'Mahasiswa');
             $kelas = trim($row[2] ?? 'Umum');
 
             if ($nim) {
                 try {
                     // BUG #7 fix: gunakan firstOrCreate tapi catat jika kelas baru dibuat
                     $classroomExists = Classroom::where('name', $kelas)->first();
-                    if (!$classroomExists) {
+                    if (! $classroomExists) {
                         $classroom = Classroom::create(['name' => $kelas]);
                         $newClassrooms[] = $kelas;
                     } else {
@@ -442,19 +472,20 @@ class AdminController extends Controller
                     $existing = User::where('username', $nim)->first();
                     if ($existing) {
                         $duplicateCount++;
+
                         continue;
                     }
 
                     User::create([
-                        'username'     => $nim,
-                        'name'         => $nama,
-                        'password'     => Hash::make($nim),
-                        'role'         => 'mahasiswa',
+                        'username' => $nim,
+                        'name' => $nama,
+                        'password' => Hash::make($nim),
+                        'role' => 'mahasiswa',
                         'classroom_id' => $classroom->id,
                     ]);
                     $importedCount++;
                 } catch (\Exception $e) {
-                    $errorRows[] = "Baris " . ($index + 2) . ": {$nim} - {$e->getMessage()}";
+                    $errorRows[] = 'Baris '.($index + 2).": {$nim} - {$e->getMessage()}";
                 }
             }
         }
@@ -464,15 +495,15 @@ class AdminController extends Controller
             $message .= " {$duplicateCount} duplikat dilewati.";
         }
         // BUG #7 fix: tampilkan peringatan jika ada kelas baru yang dibuat otomatis
-        if (!empty($newClassrooms)) {
-            $message .= " ⚠️ Kelas baru dibuat otomatis: " . implode(', ', array_unique($newClassrooms)) . ". Lengkapi info tahun ajaran di menu Kelola Kelas.";
+        if (! empty($newClassrooms)) {
+            $message .= ' ⚠️ Kelas baru dibuat otomatis: '.implode(', ', array_unique($newClassrooms)).'. Lengkapi info tahun ajaran di menu Kelola Kelas.';
         }
-        if (!empty($errorRows)) {
-            $message .= " " . count($errorRows) . " error: " . implode('; ', array_slice($errorRows, 0, 3));
+        if (! empty($errorRows)) {
+            $message .= ' '.count($errorRows).' error: '.implode('; ', array_slice($errorRows, 0, 3));
         }
 
         // BUG #11 fix: invalidate cache setelah import data
-        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_stats');
+        Cache::forget('admin_dashboard_stats');
 
         return redirect()->back()->with('success', $message);
     }
@@ -481,12 +512,13 @@ class AdminController extends Controller
     {
         $classroom->loadCount('users');
 
-        $exams = Exam::whereHas('classrooms', fn($q) => $q->where('classroom_id', $classroom->id))
+        $exams = Exam::whereHas('classrooms', fn ($q) => $q->where('classroom_id', $classroom->id))
             ->where('is_active', true)
             ->with('course', 'classrooms')
             ->get()
             ->sortBy(function ($exam) use ($classroom) {
                 $schedule = $exam->getScheduleForClassroom($classroom->id);
+
                 return $schedule ? $schedule->start_time : null;
             });
 
@@ -499,26 +531,27 @@ class AdminController extends Controller
             ->whereIn('user_id', $students->pluck('id'))
             ->orderBy('attempt_number')
             ->get()
-            ->groupBy(fn($s) => $s->user_id . '_' . $s->exam_id);
+            ->groupBy(fn ($s) => $s->user_id.'_'.$s->exam_id);
 
         $lastAttempts = ExamSession::select('user_id', 'exam_id', DB::raw('MAX(attempt_number) as max_attempt'))
             ->whereIn('exam_id', $exams->pluck('id'))
             ->whereIn('user_id', $students->pluck('id'))
             ->groupBy('user_id', 'exam_id')
             ->get()
-            ->keyBy(fn($s) => $s->user_id . '_' . $s->exam_id);
+            ->keyBy(fn ($s) => $s->user_id.'_'.$s->exam_id);
 
         return view('admin.classrooms.recap', compact('classroom', 'exams', 'students', 'sessions', 'lastAttempts'));
     }
 
     public function classroomRecapCsv(Classroom $classroom)
     {
-        $exams = Exam::whereHas('classrooms', fn($q) => $q->where('classroom_id', $classroom->id))
+        $exams = Exam::whereHas('classrooms', fn ($q) => $q->where('classroom_id', $classroom->id))
             ->where('is_active', true)
             ->with('classrooms')
             ->get()
             ->sortBy(function ($exam) use ($classroom) {
                 $schedule = $exam->getScheduleForClassroom($classroom->id);
+
                 return $schedule ? $schedule->start_time : null;
             });
 
@@ -530,7 +563,7 @@ class AdminController extends Controller
         $sessions = ExamSession::whereIn('exam_id', $exams->pluck('id'))
             ->whereIn('user_id', $students->pluck('id'))
             ->get()
-            ->groupBy(fn($s) => $s->user_id . '_' . $s->exam_id);
+            ->groupBy(fn ($s) => $s->user_id.'_'.$s->exam_id);
 
         // BUG #14 fix: load 'course' SEBELUM callback closure dibuat,
         // bukan sesudah — agar $exam->course tersedia di dalam callback
@@ -538,14 +571,14 @@ class AdminController extends Controller
 
         // BUG #10 fix: sanitize filename agar aman dari header injection
         $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $classroom->name);
-        $filename = 'rekap_kelas_' . $safeName . '.csv';
+        $filename = 'rekap_kelas_'.$safeName.'.csv';
 
         $headers = [
-            'Content-type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Pragma'              => 'no-cache',
-            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires'             => '0',
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $callback = function () use ($exams, $students, $sessions) {
@@ -555,16 +588,16 @@ class AdminController extends Controller
             foreach ($exams as $exam) {
                 // BUG #14 fix: defensive null-check untuk course
                 $courseCode = $exam->course->code ?? '?';
-                $headerRow[] = $exam->title . ' (' . $courseCode . ')';
+                $headerRow[] = $exam->title.' ('.$courseCode.')';
             }
             $headerRow[] = 'Rata-rata';
             $sanitize = function ($value) {
-                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+                return (is_string($value) && preg_match('/^[=\-+\@]/', ltrim($value, " \t\r\n"))) ? "'".$value : $value;
             };
             fputcsv($file, array_map($sanitize, $headerRow));
 
             $sanitize = function ($value) {
-                return (is_string($value) && preg_match('/^[=\-+\@]/', $value)) ? "'" . $value : $value;
+                return (is_string($value) && preg_match('/^[=\-+\@]/', ltrim($value, " \t\r\n"))) ? "'".$value : $value;
             };
 
             foreach ($students as $i => $student) {
@@ -573,11 +606,11 @@ class AdminController extends Controller
                 $counted = 0;
 
                 foreach ($exams as $exam) {
-                    $key = $student->id . '_' . $exam->id;
+                    $key = $student->id.'_'.$exam->id;
                     $sessionGroup = $sessions->get($key);
                     if ($sessionGroup) {
                         // NEW-06 fix: filter hanya session yang sudah selesai, ambil yang terakhir
-                        $finishedSessions = $sessionGroup->filter(fn($s) => $s->finished_at !== null);
+                        $finishedSessions = $sessionGroup->filter(fn ($s) => $s->finished_at !== null);
                         if ($finishedSessions->isNotEmpty()) {
                             $score = $finishedSessions->last()->score ?? '-';
                             $row[] = $score;

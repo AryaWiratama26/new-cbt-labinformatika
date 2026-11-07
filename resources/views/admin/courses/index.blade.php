@@ -15,6 +15,12 @@
             {{ session('success') }}
         </div>
     @endif
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
+            <i class="ph ph-warning-circle text-xl"></i>
+            {{ session('error') }}
+        </div>
+    @endif
 
     <div class="grid md:grid-cols-3 gap-8">
         

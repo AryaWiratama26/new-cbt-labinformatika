@@ -209,11 +209,11 @@ document.addEventListener('DOMContentLoaded', function () {
     new Chart(document.getElementById('classroomChart'), {
         type: 'bar',
         data: {
-            labels: {!! json_encode($classroomScores->pluck('name')) !!},
+            labels: @json($classroomScores->pluck('name')),
             datasets: [{
                 label: 'Rata-rata Nilai',
-                data: {!! json_encode($classroomScores->pluck('avg_score')) !!},
-                backgroundColor: {!! json_encode($classroomScores->map(fn($c, $i) => $chartColors[$i % count($chartColors)])->values()) !!},
+                data: @json($classroomScores->pluck('avg_score')),
+                backgroundColor: @json($classroomScores->map(fn($c, $i) => $chartColors[$i % count($chartColors)])->values()),
                 borderRadius: 6,
                 borderSkipped: false,
             }]
@@ -235,17 +235,17 @@ document.addEventListener('DOMContentLoaded', function () {
     new Chart(document.getElementById('examChart'), {
         type: 'bar',
         data: {
-            labels: {!! json_encode($exams->pluck('title')) !!},
+            labels: @json($exams->pluck('title')),
             datasets: [
                 {
                     label: 'Lulus',
-                    data: {!! json_encode($exams->pluck('passed_count')) !!},
+                    data: @json($exams->pluck('passed_count')),
                     backgroundColor: '#22c55e',
                     borderRadius: 6,
                 },
                 {
                     label: 'Gagal',
-                    data: {!! json_encode($exams->pluck('failed_count')) !!},
+                    data: @json($exams->pluck('failed_count')),
                     backgroundColor: '#ef4444',
                     borderRadius: 6,
                 }
@@ -267,10 +267,10 @@ document.addEventListener('DOMContentLoaded', function () {
     new Chart(document.getElementById('trendChart'), {
         type: 'line',
         data: {
-            labels: {!! json_encode($dates->pluck('date')->map(fn($d) => \Carbon\Carbon::parse($d)->format('d M'))) !!},
+            labels: @json($dates->pluck('date')->map(fn($d) => \Carbon\Carbon::parse($d)->format('d M'))),
             datasets: [{
                 label: 'Ujian Dikerjakan',
-                data: {!! json_encode($dates->pluck('count')) !!},
+                data: @json($dates->pluck('count')),
                 borderColor: '{{ $primary }}',
                 backgroundColor: '{{ $primary }}22',
                 fill: true,

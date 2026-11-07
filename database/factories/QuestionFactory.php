@@ -15,9 +15,20 @@ class QuestionFactory extends Factory
     public function definition(): array
     {
         return [
+            'type' => Question::TYPE_MULTIPLE_CHOICE,
             'content' => $this->faker->sentence().'?',
             'category' => $this->faker->randomElement(['Easy', 'Medium', 'Hard', 'Konsep', 'Praktikum']),
             'explanation' => $this->faker->sentence(),
         ];
+    }
+
+    public function coding(string $language = 'python'): static
+    {
+        return $this->state(fn () => [
+            'type' => Question::TYPE_CODING,
+            'code_language' => $language,
+            'starter_code' => "def solve():\n    pass",
+            'solution_code' => "def solve():\n    return 42",
+        ]);
     }
 }

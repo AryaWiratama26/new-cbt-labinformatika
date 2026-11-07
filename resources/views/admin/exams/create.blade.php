@@ -146,6 +146,18 @@
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
                     <span class="ml-3 text-sm font-medium text-gray-700">Wajib Layar Penuh</span>
                 </label>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="hidden" name="camera_proctoring" value="0">
+                    <input type="checkbox" name="camera_proctoring" value="1" class="sr-only peer" id="camera-proctoring-toggle">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    <span class="ml-3 text-sm font-medium text-gray-700">Kamera Pengawasan</span>
+                </label>
+                <label class="relative inline-flex items-center cursor-pointer" id="camera-phone-wrapper" style="display: none;">
+                    <input type="hidden" name="camera_phone" value="0">
+                    <input type="checkbox" name="camera_phone" value="1" class="sr-only peer" id="camera-phone-toggle">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                    <span class="ml-3 text-sm font-medium text-gray-700">+ Kamera HP</span>
+                </label>
             </div>
 
             <div class="pt-6">
@@ -157,6 +169,18 @@
         </form>
     </div>
 </div>
+
+<script>
+document.getElementById('camera-proctoring-toggle').addEventListener('change', function() {
+    const phoneWrapper = document.getElementById('camera-phone-wrapper');
+    if (this.checked) {
+        phoneWrapper.style.display = '';
+    } else {
+        phoneWrapper.style.display = 'none';
+        document.getElementById('camera-phone-toggle').checked = false;
+    }
+});
+</script>
 
 @push('scripts')
 <script>

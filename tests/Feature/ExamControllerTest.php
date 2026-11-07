@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Answer;
 use App\Models\Classroom;
 use App\Models\Exam;
 use App\Models\ExamSession;
+use App\Models\ProctorEvent;
+use App\Models\Question;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\InteractsWithExamFixtures;
 use Tests\TestCase;
 
@@ -59,6 +63,7 @@ class ExamControllerTest extends TestCase
     public function test_index_filters_by_search_term(): void
     {
         [$course, $module] = $this->makeCourseWithModule();
+        $course->update(['name' => 'Kursus Uji Filter']);
         $classroom = Classroom::factory()->create();
         $match = $this->makeExamWithSchedule($module, $classroom);
         $match->update(['title' => 'Jaringan Komputer']);
@@ -266,6 +271,61 @@ class ExamControllerTest extends TestCase
         $this->assertSame([$otherClassroom->id], $exam->classrooms()->pluck('classrooms.id')->all());
     }
 
+    public function test_store_rejects_duplicate_classroom_and_oversized_duration(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $classroom = Classroom::factory()->create();
+
+        $dup = $this->payload($module->id, $classroom->id, [
+            'classrooms' => [
+                [
+                    'classroom_id' => $classroom->id,
+                    'start_time' => now()->addHour()->toDateTimeString(),
+                    'end_time' => now()->addHours(3)->toDateTimeString(),
+                    'duration_minutes' => 60,
+                    'pin' => null,
+                    'is_active' => 1,
+                ],
+                [
+                    'classroom_id' => $classroom->id,
+                    'start_time' => now()->addHour()->toDateTimeString(),
+                    'end_time' => now()->addHours(3)->toDateTimeString(),
+                    'duration_minutes' => 60,
+                    'pin' => null,
+                    'is_active' => 1,
+                ],
+            ],
+        ]);
+        $this->admin()->post(route('admin.exams.store'), $dup)->assertSessionHasErrors('classrooms.1.classroom_id');
+
+        $long = $this->payload($module->id, $classroom->id, [
+            'classrooms' => [[
+                'classroom_id' => $classroom->id,
+                'start_time' => now()->addHour()->toDateTimeString(),
+                'end_time' => now()->addHours(2)->toDateTimeString(),
+                'duration_minutes' => 120,
+                'pin' => null,
+                'is_active' => 1,
+            ]],
+        ]);
+        $this->admin()->post(route('admin.exams.store'), $long)->assertSessionHasErrors('classrooms.0.duration_minutes');
+    }
+
+    public function test_update_is_blocked_when_detaching_classroom_with_live_session(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $classroom = Classroom::factory()->create();
+        $otherClassroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->admin()->put(route('admin.exams.update', $exam), $this->payload($module->id, $otherClassroom->id))
+            ->assertSessionHasErrors('classrooms');
+
+        $this->assertTrue($exam->classrooms()->where('classrooms.id', $classroom->id)->exists());
+    }
+
     public function test_destroy_deletes_the_exam(): void
     {
         [, $module] = $this->makeCourseWithModule();
@@ -278,6 +338,21 @@ class ExamControllerTest extends TestCase
 
         $this->assertDatabaseMissing('exams', ['id' => $exam->id]);
         $this->assertDatabaseMissing('exam_classroom', ['exam_id' => $exam->id]);
+    }
+
+    public function test_destroy_is_blocked_when_sessions_exist(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $this->admin()->delete(route('admin.exams.destroy', $exam))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('exams', ['id' => $exam->id]);
     }
 
     public function test_show_displays_questions_with_answer_keys(): void
@@ -411,6 +486,36 @@ class ExamControllerTest extends TestCase
         $this->assertSame('95.00', $participant['score']);
     }
 
+    public function test_monitor_returns_camera_status_and_event_count(): void
+    {
+        [, $module] = $this->makeCourseWithModule(1);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+        $session = ExamSession::factory()->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+
+        $session->update([
+            'laptop_seen_at' => now(),
+            'phone_seen_at' => now()->subMinute(),
+        ]);
+        ProctorEvent::create([
+            'exam_session_id' => $session->id,
+            'source' => 'laptop',
+            'type' => 'no_face',
+        ]);
+
+        $response = $this->admin()->get(route('admin.exams.monitor', $exam), [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('participants.'.$student->username.'.session_id', $session->id)
+            ->assertJsonPath('participants.'.$student->username.'.laptop_online', true)
+            ->assertJsonPath('participants.'.$student->username.'.phone_online', false)
+            ->assertJsonPath('participants.'.$student->username.'.proctor_event_count', 1);
+    }
+
     public function test_monitor_excludes_students_from_inactive_classrooms(): void
     {
         [, $module] = $this->makeCourseWithModule(1);
@@ -480,6 +585,367 @@ class ExamControllerTest extends TestCase
         $this->admin()->get(route('admin.exams.student_report', [$exam, $student]))
             ->assertRedirect(route('admin.exams.results', $exam))
             ->assertSessionHas('error');
+    }
+
+    // ------------------------------------------------------------- grading
+
+    private function codingAnswer(ExamSession $session, Question $question, ?int $score = null): Answer
+    {
+        return Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $question->id,
+            'answer_text' => 'print("jawaban")',
+            'grade_status' => $score === null ? Answer::GRADE_PENDING : Answer::GRADE_GRADED,
+            'score' => $score,
+        ]);
+    }
+
+    public function test_grade_coding_saves_score_and_recomputes_session(): void
+    {
+        [, $module] = $this->makeCourseWithModule(1);
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id,
+        ]);
+        $mcq = $module->questions()->where('type', Question::TYPE_MULTIPLE_CHOICE)->first();
+        $this->answerCorrectly($session, $mcq);
+        $answer = $this->codingAnswer($session, $coding);
+
+        $this->admin()->post(route('admin.exams.grade_coding', [$exam, $session]), [
+            'scores' => [$answer->id => 100],
+        ])->assertRedirect();
+
+        $answer->refresh();
+        $this->assertSame(Answer::GRADE_GRADED, $answer->grade_status);
+        $this->assertEquals(100.0, (float) $answer->score);
+
+        $session->refresh();
+        $this->assertEquals(100.0, (float) $session->score);
+        $this->assertNotNull($session->graded_at);
+    }
+
+    public function test_grade_coding_keeps_session_pending_until_all_answers_scored(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $first = $this->makeCodingQuestion($module);
+        $second = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id, 'graded_at' => null,
+        ]);
+        $answerA = $this->codingAnswer($session, $first);
+        $this->codingAnswer($session, $second);
+
+        $this->admin()->post(route('admin.exams.grade_coding', [$exam, $session]), [
+            'scores' => [$answerA->id => 50],
+        ])->assertRedirect();
+
+        $this->assertNull($session->fresh()->graded_at);
+    }
+
+    public function test_grade_coding_ignores_answers_belonging_to_another_session(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $owner = $this->makeStudent($classroom);
+        $other = $this->makeStudent($classroom);
+
+        $ownerSession = ExamSession::factory()->finished(0)->create(['user_id' => $owner->id, 'exam_id' => $exam->id]);
+        $otherSession = ExamSession::factory()->finished(0)->create(['user_id' => $other->id, 'exam_id' => $exam->id]);
+        $foreignAnswer = $this->codingAnswer($ownerSession, $coding);
+
+        $this->admin()->post(route('admin.exams.grade_coding', [$exam, $otherSession]), [
+            'scores' => [$foreignAnswer->id => 100],
+        ])->assertRedirect();
+
+        $this->assertSame(Answer::GRADE_PENDING, $foreignAnswer->fresh()->grade_status);
+        $this->assertNull($foreignAnswer->fresh()->score);
+    }
+
+    public function test_grade_coding_validates_score_range(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding);
+
+        $this->admin()->post(route('admin.exams.grade_coding', [$exam, $session]), [
+            'scores' => [$answer->id => 150],
+        ])->assertSessionHasErrors('scores.'.$answer->id);
+    }
+
+    public function test_grade_coding_marks_score_as_manual(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding);
+
+        $this->admin()->post(route('admin.exams.grade_coding', [$exam, $session]), [
+            'scores' => [$answer->id => 80],
+        ])->assertRedirect();
+
+        $this->assertSame(Answer::GRADED_BY_MANUAL, $answer->fresh()->graded_by);
+    }
+
+    private function groqOk(string $content): void
+    {
+        Http::fake([
+            'api.groq.com/*' => Http::response(['choices' => [['message' => ['content' => $content]]]]),
+        ]);
+    }
+
+    public function test_ai_grade_coding_grades_pending_answers(): void
+    {
+        $this->groqOk('{"score": 85, "feedback": "Bagus, kurang edge case."}');
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding);
+
+        $this->admin()->post(route('admin.exams.ai_grade_coding', [$exam, $session]))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $answer->refresh();
+        $this->assertSame(Answer::GRADE_GRADED, $answer->grade_status);
+        $this->assertSame(Answer::GRADED_BY_AI, $answer->graded_by);
+        $this->assertEquals(85.0, (float) $answer->score);
+        $this->assertSame('Bagus, kurang edge case.', $answer->ai_grade_detail['feedback']);
+        $this->assertNotNull($session->fresh()->graded_at);
+    }
+
+    public function test_ai_grade_coding_skips_manual_scores_unless_forced(): void
+    {
+        $this->groqOk('{"score": 90, "feedback": "OK."}');
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding, 60);
+        $answer->update(['graded_by' => Answer::GRADED_BY_MANUAL, 'ai_grade_detail' => null]);
+
+        $this->admin()->post(route('admin.exams.ai_grade_coding', [$exam, $session]))->assertRedirect();
+
+        $this->assertEquals(60.0, (float) $answer->fresh()->score);
+        $this->assertSame(Answer::GRADED_BY_MANUAL, $answer->fresh()->graded_by);
+
+        $this->admin()->post(route('admin.exams.ai_grade_coding', [$exam, $session]), ['force' => 1])->assertRedirect();
+
+        $answer->refresh();
+        $this->assertEquals(90.0, (float) $answer->score);
+        $this->assertSame(Answer::GRADED_BY_AI, $answer->graded_by);
+    }
+
+    public function test_ai_grade_coding_leaves_pending_when_ai_fails(): void
+    {
+        Http::fake(['api.groq.com/*' => Http::response('limit', 429)]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding);
+
+        $this->admin()->post(route('admin.exams.ai_grade_coding', [$exam, $session]))->assertRedirect();
+
+        $this->assertSame(Answer::GRADE_PENDING, $answer->fresh()->grade_status);
+        $this->assertNull($answer->fresh()->graded_by);
+    }
+
+    public function test_student_report_shows_ai_feedback_to_admin(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding, 85);
+        $answer->update([
+            'graded_by' => Answer::GRADED_BY_AI,
+            'ai_grade_detail' => ['score' => 85, 'feedback' => 'Rahasia dapur AI.', 'model' => 'x'],
+        ]);
+
+        $this->admin()->get(route('admin.exams.student_report', [$exam, $student]))
+            ->assertOk()
+            ->assertSee('Rahasia dapur AI.');
+    }
+
+    public function test_grade_coding_is_forbidden_for_students(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create(['user_id' => $student->id, 'exam_id' => $exam->id]);
+        $answer = $this->codingAnswer($session, $coding);
+
+        $this->actingAs($student)->post(route('admin.exams.grade_coding', [$exam, $session]), [
+            'scores' => [$answer->id => 100],
+        ])->assertForbidden();
+    }
+
+    public function test_results_flags_sessions_that_still_need_manual_grading(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id, 'graded_at' => null,
+        ]);
+        $this->codingAnswer($session, $coding);
+
+        $this->admin()->get(route('admin.exams.results', $exam))
+            ->assertOk()
+            ->assertSee('Perlu dinilai');
+    }
+
+    public function test_results_ignores_blank_coding_answers(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $session = ExamSession::factory()->finished(0)->create([
+            'user_id' => $student->id, 'exam_id' => $exam->id, 'graded_at' => now(),
+        ]);
+        Answer::create([
+            'exam_session_id' => $session->id,
+            'question_id' => $coding->id,
+            'answer_text' => '   ',
+            'grade_status' => Answer::GRADE_PENDING,
+            'score' => null,
+        ]);
+
+        $this->admin()->get(route('admin.exams.results', $exam))
+            ->assertOk()
+            ->assertDontSee('Perlu dinilai');
+    }
+
+    public function test_student_report_is_forbidden_for_non_students_and_outsiders(): void
+    {
+        [, $module] = $this->makeCourseWithModule();
+        $classroom = Classroom::factory()->create();
+        $otherClassroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $outsider = $this->makeStudent($otherClassroom);
+
+        $this->admin()->get(route('admin.exams.student_report', [$exam, $outsider]))->assertForbidden();
+
+        $admin = $this->makeAdmin();
+        $this->admin()->get(route('admin.exams.student_report', [$exam, $admin]))->assertForbidden();
+    }
+
+    public function test_run_code_returns_output_for_admin(): void
+    {
+        Http::fake([
+            'wandbox.org/*' => Http::response(['status' => '0', 'program_message' => "6\n"]),
+        ]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'sql');
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+
+        $this->admin()->postJson(route('admin.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'SELECT 2*3;',
+        ])->assertOk()->assertJson(['ok' => true, 'output' => "6\n"]);
+
+        Http::assertSent(fn ($request) => $request['compiler'] === 'sqlite-3.46.1');
+    }
+
+    public function test_run_code_forwards_stdin_for_admin(): void
+    {
+        Http::fake([
+            'wandbox.org/*' => Http::response(['status' => '0', 'program_message' => "hello\n"]),
+        ]);
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module, 'python');
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+
+        $this->admin()->postJson(route('admin.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(input())',
+            'stdin' => 'hello',
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        Http::assertSent(fn ($request) => $request['stdin'] === 'hello');
+    }
+
+    public function test_run_code_rejects_a_non_coding_question_for_admin(): void
+    {
+        Http::fake();
+
+        [, $module] = $this->makeCourseWithModule(1);
+        $mcq = $module->questions()->first();
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+
+        $this->admin()->postJson(route('admin.exams.run_code', $exam), [
+            'question_id' => $mcq->id,
+            'code' => 'print(1)',
+        ])->assertStatus(400);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_run_code_is_forbidden_for_students(): void
+    {
+        Http::fake();
+
+        [, $module] = $this->makeCourseWithModule();
+        $coding = $this->makeCodingQuestion($module);
+        $classroom = Classroom::factory()->create();
+        $exam = $this->makeExamWithSchedule($module, $classroom, ['start_time' => now()]);
+        $student = $this->makeStudent($classroom);
+
+        $this->actingAs($student)->postJson(route('admin.exams.run_code', $exam), [
+            'question_id' => $coding->id,
+            'code' => 'print(1)',
+        ])->assertForbidden();
+
+        Http::assertNothingSent();
     }
 
     public function test_guests_cannot_access_exam_management(): void
