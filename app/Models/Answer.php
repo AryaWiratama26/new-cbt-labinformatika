@@ -34,9 +34,9 @@ class Answer extends Model
     /**
      * Kondisi "belum dinilai" sisi jawaban, selaras dengan
      * ExamScoringService::recompute(): ber-teks (tidak kosong/blank)
-     * dan belum berstatus GRADED. Panggil hanya untuk soal koding.
+     * dan belum berstatus GRADED. Berlaku untuk soal koding dan essay.
      */
-    public function isUnscoredCodingAnswer(): bool
+    public function isUnscoredManualAnswer(): bool
     {
         return $this->answer_text !== null
             && trim((string) $this->answer_text) !== ''

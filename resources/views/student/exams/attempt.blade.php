@@ -113,6 +113,12 @@
                                                 </span>
                                             @endif
                                         </div>
+                                    @elseif($question->isEssay())
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                                                <i class="ph-fill ph-article"></i> Soal Essay
+                                            </span>
+                                        </div>
                                     @endif
                                     <p class="text-gray-900 text-lg font-medium leading-relaxed whitespace-pre-wrap">{{ $question->content }}</p>
                                 </div>
@@ -186,6 +192,19 @@
                                     @endif
                                     <textarea name="answers_text[{{ $question->id }}]" class="code-submit hidden">{{ $codeValue }}</textarea>
                                     <script type="application/json" class="code-seed" data-qid="{{ $question->id }}">@json($question->starter_code ?? '')</script>
+                                </div>
+                            @elseif($question->isEssay())
+                                @php
+                                    $essayValue = $existingAnswers[$question->id] ?? $codeAnswers[$question->id] ?? '';
+                                @endphp
+                                <div class="ml-14">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold mb-3">
+                                        <i class="ph-fill ph-article"></i> Soal Essay
+                                    </span>
+                                    <textarea name="answers_text[{{ $question->id }}]" rows="8" maxlength="10000" data-qid="{{ $question->id }}" placeholder="Tulis jawaban Anda di sini…" class="essay-answer w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-y text-gray-800 leading-relaxed">{{ $essayValue }}</textarea>
+                                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                        <i class="ph ph-floppy-disk"></i> Jawaban tersimpan otomatis saat Anda mengetik (maksimal 10000 karakter).
+                                    </p>
                                 </div>
                             @else
                                 <div class="ml-14 space-y-3">
@@ -562,6 +581,24 @@
             codeSaveTimers[questionId] = setTimeout(() => saveAnswer(questionId, null, value), 800);
         }
         window.CBTSaveCode = saveCodeAnswer;
+
+        // ── Essay autosave (debounced, same pipeline as code answers) ──
+        const essaySaveTimers = {};
+        function saveEssayAnswer(questionId, value) {
+            if (value && value.length > 10000) {
+                showSaveStatus('error');
+                updateNavButton(questionId, 'pending');
+                return;
+            }
+            updateNavButton(questionId, value && value.trim() ? 'pending' : 'unanswered');
+            clearTimeout(essaySaveTimers[questionId]);
+            essaySaveTimers[questionId] = setTimeout(() => saveAnswer(questionId, null, value), 800);
+        }
+        document.querySelectorAll('.essay-answer').forEach((ta) => {
+            ta.addEventListener('input', function () {
+                saveEssayAnswer(this.dataset.qid, this.value);
+            });
+        });
 
         // ── Code editor helpers ──
         function syncCodeInputs() {

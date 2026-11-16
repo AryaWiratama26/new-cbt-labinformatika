@@ -1,4 +1,5 @@
-Soal,Gambar,Pilihan A,Pilihan B,Pilihan C,Pilihan D,Kunci Jawaban,Kategori
-"Ibukota Indonesia adalah...","",Jakarta,Surabaya,Bandung,Medan,A,Pengetahuan Umum
-"Peralatan input pada komputer adalah...","",Monitor,Keyboard,Printer,Speaker,B,Dasar
-"Kode plat nomor Jakarta adalah?","",B,D,F,E,A,Pengetahuan Umum
+Soal,Gambar,Pilihan A,Pilihan B,Pilihan C,Pilihan D,Kunci Jawaban,Kategori,Tipe
+"Ibukota Indonesia adalah...","",Jakarta,Surabaya,Bandung,Medan,A,Pengetahuan Umum,
+"Peralatan input pada komputer adalah...","",Monitor,Keyboard,Printer,Speaker,B,Dasar,
+"Kode plat nomor Jakarta adalah?","",B,D,F,E,A,Pengetahuan Umum,
+"Jelaskan perbedaan RAM dan ROM.","","","","","","",Sedang,essay

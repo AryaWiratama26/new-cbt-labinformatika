@@ -314,11 +314,11 @@ class ExamController extends Controller
             ->orderBy('attempt_number')
             ->get();
 
-        $codingIds = $exam->getQuestions()->filter(fn ($q) => $q->isCoding())->pluck('id');
+        $codingIds = $exam->getQuestions()->filter(fn ($q) => $q->needsManualGrading())->pluck('id');
 
         $allSessions->each(function ($session) use ($codingIds) {
-            $session->has_pending_coding = $session->answers->contains(
-                fn ($answer) => $codingIds->contains($answer->question_id) && $answer->isUnscoredCodingAnswer()
+            $session->has_pending_manual = $session->answers->contains(
+                fn ($answer) => $codingIds->contains($answer->question_id) && $answer->isUnscoredManualAnswer()
             );
         });
 
@@ -550,14 +550,14 @@ class ExamController extends Controller
             'scores.*' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $codingQuestionIds = $exam->getQuestions()
-            ->filter(fn ($question) => $question->isCoding())
+        $manualQuestionIds = $exam->getQuestions()
+            ->filter(fn ($question) => $question->needsManualGrading())
             ->pluck('id');
 
         foreach ($request->input('scores', []) as $answerId => $score) {
             $answer = Answer::where('id', $answerId)
                 ->where('exam_session_id', $session->id)
-                ->whereIn('question_id', $codingQuestionIds)
+                ->whereIn('question_id', $manualQuestionIds)
                 ->first();
 
             if (! $answer) {
@@ -583,7 +583,7 @@ class ExamController extends Controller
 
         $this->scoring->refreshSession($session, $exam);
 
-        return back()->with('success', 'Penilaian soal koding berhasil disimpan.');
+        return back()->with('success', 'Penilaian manual berhasil disimpan.');
     }
 
     /**

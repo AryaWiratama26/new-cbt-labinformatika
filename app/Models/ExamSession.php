@@ -24,16 +24,16 @@ class ExamSession extends Model
         'score' => 'decimal:2',
     ];
 
-    public function hasPendingCoding(): bool
+    public function hasPendingManualGrading(): bool
     {
-        $codingIds = $this->exam
-            ? $this->exam->getQuestions()->filter(fn ($q) => $q->isCoding())->pluck('id')
+        $manualIds = $this->exam
+            ? $this->exam->getQuestions()->filter(fn ($q) => $q->needsManualGrading())->pluck('id')
             : collect();
 
         return $this->answers()
-            ->whereIn('question_id', $codingIds)
+            ->whereIn('question_id', $manualIds)
             ->get()
-            ->contains(fn ($answer) => $answer->isUnscoredCodingAnswer());
+            ->contains(fn ($answer) => $answer->isUnscoredManualAnswer());
     }
 
     public function user()

@@ -13,6 +13,8 @@ class Question extends Model
 
     public const TYPE_CODING = 'coding';
 
+    public const TYPE_ESSAY = 'essay';
+
     public const SUPPORTED_LANGUAGES = [
         'python' => 'Python',
         'php' => 'PHP',
@@ -42,6 +44,21 @@ class Question extends Model
     public function isCoding(): bool
     {
         return $this->type === self::TYPE_CODING;
+    }
+
+    public function isEssay(): bool
+    {
+        return $this->type === self::TYPE_ESSAY;
+    }
+
+    /**
+     * Soal yang jawabannya berupa teks bebas dan wajib dinilai manual
+     * (koding atau essay). Dipakai untuk autosave, skoring pending,
+     * dan koreksi — bukan untuk run/AI-grade yang khusus koding.
+     */
+    public function needsManualGrading(): bool
+    {
+        return $this->isCoding() || $this->isEssay();
     }
 
     public function languageLabel(): ?string

@@ -100,6 +100,10 @@
                                                 &middot; {{ $question->languageLabel() }}
                                             @endif
                                         </span>
+                                    @elseif($question->isEssay())
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700">
+                                            <i class="ph-fill ph-article"></i> Essay
+                                        </span>
                                     @endif
                                     @if($question->category)
                                         @php($badge = ['mudah' => 'bg-green-100 text-green-700', 'sedang' => 'bg-yellow-100 text-yellow-700', 'sulit' => 'bg-red-100 text-red-700'][strtolower($question->category)] ?? 'bg-gray-100 text-gray-700')
@@ -153,7 +157,9 @@
                                         <div class="px-3 py-2 rounded-xl border {{ $option->is_correct ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200' }} flex gap-2 items-center min-w-0">
                                             @if($option->is_correct)
                                                 <i class="ph-fill ph-check-circle text-green-500 flex-shrink-0"></i>
-                                            @else
+                            @elseif($question->isEssay())
+                                <p class="text-xs text-gray-400 italic flex items-center gap-1"><i class="ph ph-note-pencil"></i> Jawaban uraian, dinilai manual oleh pengawas.</p>
+                            @else
                                                 <i class="ph ph-circle text-gray-300 flex-shrink-0"></i>
                                             @endif
                                             <span class="text-sm {{ $option->is_correct ? 'text-green-800 font-semibold' : 'text-gray-600' }} break-words">{{ $option->content }}</span>

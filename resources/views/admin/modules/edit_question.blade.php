@@ -21,7 +21,7 @@
 
             <div>
                 <label class="block text-sm font-bold text-gray-900 mb-2">Tipe Soal <span class="text-red-500">*</span></label>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <label class="cursor-pointer">
                         <input type="radio" name="type" value="multiple_choice" class="peer sr-only type-toggle" {{ $selectedType === 'multiple_choice' ? 'checked' : '' }}>
                         <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-200 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:ring-1 peer-checked:ring-primary transition-colors">
@@ -39,6 +39,16 @@
                             <div>
                                 <p class="font-semibold text-gray-900 text-sm">Koding</p>
                                 <p class="text-xs text-gray-500">Mahasiswa menulis kode, dinilai AI/manual</p>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="type" value="essay" class="peer sr-only type-toggle" {{ $selectedType === 'essay' ? 'checked' : '' }}>
+                        <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-200 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:ring-1 peer-checked:ring-primary transition-colors">
+                            <i class="ph ph-article text-2xl text-amber-600"></i>
+                            <div>
+                                <p class="font-semibold text-gray-900 text-sm">Essay</p>
+                                <p class="text-xs text-gray-500">Uraian teks, dinilai manual</p>
                             </div>
                         </div>
                     </label>
@@ -88,7 +98,7 @@
 
             <hr class="border-gray-100">
 
-            <div id="mcq-section" class="{{ $selectedType === 'coding' ? 'hidden' : '' }}">
+            <div id="mcq-section" class="{{ $selectedType === 'multiple_choice' ? '' : 'hidden' }}">
                 <label class="block text-sm font-bold text-gray-900 mb-4">Pilihan Ganda & Kunci Jawaban <span class="text-red-500">*</span></label>
                 @php
                     $correctIdx = $question->options->where('is_correct', true)->first() ? $question->options->values()->search(fn($o) => $o->is_correct) : 0;
@@ -156,20 +166,21 @@ function previewImage(input, containerId) {
 }
 
 function toggleQuestionType(type) {
+    const isMC = type === 'multiple_choice';
     const isCoding = type === 'coding';
-    document.getElementById('mcq-section').classList.toggle('hidden', isCoding);
+    document.getElementById('mcq-section').classList.toggle('hidden', !isMC);
     document.getElementById('coding-section').classList.toggle('hidden', !isCoding);
 
     document.querySelectorAll('.mcq-required').forEach((el) => {
-        if (isCoding) el.removeAttribute('required');
-        else el.setAttribute('required', 'required');
+        if (isMC) el.setAttribute('required', 'required');
+        else el.removeAttribute('required');
     });
     document.querySelectorAll('.coding-required').forEach((el) => {
         if (isCoding) el.setAttribute('required', 'required');
         else el.removeAttribute('required');
     });
 
-    if (isCoding) {
+    if (!isMC) {
         const checked = document.querySelector('.mcq-required[name="correct_option"]:checked');
         if (checked) checked.checked = false;
     }

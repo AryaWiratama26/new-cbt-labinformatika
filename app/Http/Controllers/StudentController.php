@@ -25,6 +25,19 @@ class StudentController extends Controller
      */
     private const SUBMIT_GRACE_SECONDS = 60;
 
+    /**
+     * Batas panjang jawaban essay (TEXT di DB muat ~65 ribu karakter;
+     * 10 ribu memberi ruang aman untuk payload AJAX + localStorage).
+     */
+    private const ESSAY_MAX_LENGTH = 10000;
+
+    private function essayTooLong(Question $question, mixed $text): bool
+    {
+        return $question->isEssay()
+            && $text !== null
+            && mb_strlen((string) $text) > self::ESSAY_MAX_LENGTH;
+    }
+
     private function loadScheduleForUser(Exam $exam, $user)
     {
         if (! $exam->relationLoaded('classrooms')) {
@@ -178,12 +191,12 @@ class StudentController extends Controller
             abort(403);
         }
 
-        $codingIds = $examSession->exam
-            ? $examSession->exam->getQuestions()->filter(fn ($q) => $q->isCoding())->pluck('id')
+        $manualIds = $examSession->exam
+            ? $examSession->exam->getQuestions()->filter(fn ($q) => $q->needsManualGrading())->pluck('id')
             : collect();
 
         $pending = $examSession->answers()
-            ->whereIn('question_id', $codingIds)
+            ->whereIn('question_id', $manualIds)
             ->whereNotNull('answer_text')
             ->whereRaw("TRIM(answer_text) <> ''")
             ->where('grade_status', '<>', Answer::GRADE_GRADED)
@@ -468,8 +481,12 @@ class StudentController extends Controller
             return response()->json(['success' => false, 'message' => 'Soal tidak valid.'], 400);
         }
 
-        if ($question->isCoding()) {
+        if ($question->needsManualGrading()) {
             $text = $request->input('answer_text');
+
+            if ($this->essayTooLong($question, $text)) {
+                return response()->json(['success' => false, 'message' => 'Jawaban essay maksimal 10000 karakter.'], 422);
+            }
 
             return DB::transaction(function () use ($session, $question, $text) {
                 if (! $this->lockActiveSession($session->id)) {
@@ -727,8 +744,14 @@ class StudentController extends Controller
                     continue;
                 }
 
-                if ($question->isCoding()) {
+                if ($question->needsManualGrading()) {
                     $text = $item['answer_text'] ?? null;
+
+                    if ($this->essayTooLong($question, $text)) {
+                        $errors[] = "Jawaban essay soal #{$item['question_id']} melebihi 10000 karakter.";
+
+                        continue;
+                    }
 
                     if ($text === null || trim((string) $text) === '') {
                         Answer::where('exam_session_id', $session->id)
@@ -838,8 +861,13 @@ class StudentController extends Controller
         $questions = $exam->getQuestions();
 
         foreach ($questions as $question) {
-            if ($question->isCoding()) {
+            if ($question->needsManualGrading()) {
                 $text = $textAnswers[$question->id] ?? null;
+
+                if ($this->essayTooLong($question, $text)) {
+                    return redirect()->route('student.exams.attempt', $exam)
+                        ->with('error', 'Jawaban essay melebihi 10000 karakter. Persingkat lalu kumpulkan lagi.');
+                }
 
                 if ($text !== null && trim((string) $text) !== '') {
                     Answer::updateOrCreate(

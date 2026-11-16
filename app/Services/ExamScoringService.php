@@ -9,8 +9,9 @@ use App\Models\ExamSession;
 class ExamScoringService
 {
     /**
-     * Hitung ulang nilai sesi. Soal pilihan ganda bernilai 1 bila benar,
-     * soal koding bernilai score/100 dan dihitung "pending" sampai dinilai admin.
+     * Hitung ulang nilai sesi. Soal pilihan ganda bernilai 1 bila benar;
+     * soal koding/essay bernilai score/100 dan dihitung "pending" sampai
+     * dinilai admin.
      *
      * @return array{score: float, pending: int}
      */
@@ -30,7 +31,7 @@ class ExamScoringService
         foreach ($questions as $question) {
             $answer = $answers->get($question->id);
 
-            if ($question->isCoding()) {
+            if ($question->needsManualGrading()) {
                 if (! $answer || $answer->answer_text === null || trim((string) $answer->answer_text) === '') {
                     continue;
                 }

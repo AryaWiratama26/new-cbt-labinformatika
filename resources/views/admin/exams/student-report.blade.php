@@ -77,6 +77,26 @@
                                 @php $questionNumber++; @endphp
                                 @continue
                             @endif
+                            @if($question->isEssay())
+                                @php $essayAnswer = $session->answers->firstWhere('question_id', $question->id); @endphp
+                                <div class="p-4 rounded-xl border {{ $essayAnswer && trim((string) $essayAnswer->answer_text) !== '' ? 'bg-amber-50/50 border-amber-200' : 'bg-gray-50 border-gray-200' }}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="h-7 w-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                                            {{ $questionNumber }}
+                                        </span>
+                                        <div class="flex-grow min-w-0">
+                                            <p class="text-sm font-medium text-gray-900 mb-2">{{ $question->content }}</p>
+                                            @if($essayAnswer && trim((string) $essayAnswer->answer_text) !== '')
+                                                <p class="text-sm text-gray-700 whitespace-pre-wrap break-words">{{ $essayAnswer->answer_text }}</p>
+                                            @else
+                                                <p class="text-xs text-gray-400"><i class="ph ph-minus-circle"></i> Tidak dijawab</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                @php $questionNumber++; @endphp
+                                @continue
+                            @endif
                             <div class="p-4 rounded-xl border {{ $isCorrect ? 'bg-green-50 border-green-200' : ($selectedOption ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200') }}">
                                 <div class="flex items-start gap-3">
                                     <span class="h-7 w-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold {{ $isCorrect ? 'text-green-600 border-green-300' : ($selectedOption ? 'text-red-500 border-red-300' : 'text-gray-400') }} flex-shrink-0">
@@ -116,10 +136,12 @@
                 @endif
 
                 @php
-                    $codingQuestions = $questions->filter(fn ($q) => $q->isCoding());
-                    $codingAnswers = $session->answers->filter(fn ($a) => $codingQuestions->contains('id', $a->question_id) && $a->answer_text !== null);
+                    $manualQuestions = $questions->filter(fn ($q) => $q->needsManualGrading());
+                    $manualAnswers = $session->answers->filter(fn ($a) => $manualQuestions->contains('id', $a->question_id) && $a->answer_text !== null);
+                    $hasCodingAnswers = $manualAnswers->contains(fn ($a) => ($questions->firstWhere('id', $a->question_id)?->isCoding()) === true);
                 @endphp
-                @if($codingAnswers->isNotEmpty())
+                @if($manualAnswers->isNotEmpty())
+                    @if($hasCodingAnswers)
                     <form action="{{ route('admin.exams.ai_grade_coding', [$exam, $session]) }}" method="POST" class="mt-5 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-blue-100 bg-blue-50/60 print:hidden">
                         @csrf
                         <p class="text-xs text-blue-800 flex-grow min-w-[12rem]"><i class="ph ph-robot"></i> Nilai semua jawaban koding di bawah memakai AI (maks 5 per klik, sisanya via cron). Nilai manual/AI sebelumnya tidak ditimpa kecuali opsi di samping dicentang.</p>
@@ -128,10 +150,11 @@
                             <i class="ph-fill ph-play"></i> Nilai dengan AI
                         </button>
                     </form>
+                    @endif
                     <form action="{{ route('admin.exams.grade_coding', [$exam, $session]) }}" method="POST" class="mt-3 space-y-3">
                         @csrf
                         <div class="flex items-center justify-between">
-                            <p class="text-sm font-bold text-gray-900 flex items-center gap-2"><i class="ph-fill ph-code text-secondary"></i> Penilaian Soal Koding</p>
+                            <p class="text-sm font-bold text-gray-900 flex items-center gap-2"><i class="ph ph-clipboard-text text-secondary"></i> Penilaian Manual (Koding &amp; Essay)</p>
                             @if($session->graded_at)
                                 <span class="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">Sudah dinilai</span>
                             @else
@@ -139,12 +162,16 @@
                             @endif
                         </div>
 
-                        @foreach($codingAnswers as $answer)
-                            @php $question = $questions->firstWhere('id', $answer->question_id); @endphp
+                        @foreach($manualAnswers as $answer)
+                            @php
+                                $question = $questions->firstWhere('id', $answer->question_id);
+                                $isCodingAnswer = $question && $question->isCoding();
+                            @endphp
                             <div class="p-4 rounded-xl border border-gray-200 bg-gray-50/50">
                                 <div class="flex flex-col md:flex-row items-start gap-4">
                                     <div class="flex-grow min-w-0 w-full">
                                         <p class="text-sm font-medium text-gray-900 mb-2">{{ $question->content ?? '-' }}</p>
+                                        @if($isCodingAnswer)
                                         <div class="flex items-center gap-2 mb-2">
                                             <span class="px-2 py-0.5 text-xs rounded-full font-medium bg-secondary/10 text-secondary">{{ $question->languageLabel() ?? 'Kode' }}</span>
                                             <button type="button" class="admin-run-code-btn text-xs font-semibold text-white bg-secondary hover:bg-secondary/90 px-3 py-1 rounded-lg transition-colors inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-wait" data-answer="{{ $answer->id }}" data-question="{{ $answer->question_id }}">
@@ -152,6 +179,10 @@
                                             </button>
                                         </div>
                                         <pre class="p-3 rounded-lg bg-gray-900 text-gray-100 text-xs overflow-x-auto"><code>{{ $answer->answer_text }}</code></pre>
+                                        @else
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700 mb-2"><i class="ph-fill ph-article"></i> Essay</span>
+                                        <p class="p-3 rounded-lg bg-white border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap break-words">{{ $answer->answer_text }}</p>
+                                        @endif
                                         @php $aiDetail = is_array($answer->ai_grade_detail ?? null) ? $answer->ai_grade_detail : []; @endphp
                                         @if(!empty($aiDetail))
                                             <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
@@ -161,6 +192,7 @@
                                                 @endif
                                             </div>
                                         @endif
+                                        @if($isCodingAnswer)
                                         <div class="admin-code-output mt-2 rounded-lg overflow-hidden border border-gray-800 print:hidden" data-answer="{{ $answer->id }}">
                                             <div class="flex items-center justify-between bg-gray-900 px-3 py-1.5">
                                                 <span class="text-xs font-semibold text-gray-300 inline-flex items-center gap-1"><i class="ph ph-terminal-window"></i> Output</span>
@@ -177,6 +209,7 @@
                                             </div>
                                         </div>
                                         <textarea class="hidden admin-code-source" data-answer="{{ $answer->id }}">{{ $answer->answer_text }}</textarea>
+                                        @endif
                                     </div>
                                     <div class="w-full md:w-28 flex-shrink-0">
                                         <label class="block text-xs font-semibold text-gray-700 mb-1">Nilai (0-100)</label>

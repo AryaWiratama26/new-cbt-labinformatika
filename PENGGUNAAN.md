@@ -222,7 +222,8 @@ Bank soal menampilkan semua soal dalam sebuah modul. Dilengkapi dengan fitur pen
 ### Menambah Soal Manual
 
 1. Klik tombol **"Tambah Manual"** (kanan atas)
-2. Isi form lengkap:
+2. Pilih **Tipe Soal** terlebih dahulu: **Pilihan Ganda**, **Koding**, atau **Essay**
+3. Isi form lengkap:
 
 | Field | Keterangan | Wajib |
 |-------|------------|-------|
@@ -230,13 +231,11 @@ Bank soal menampilkan semua soal dalam sebuah modul. Dilengkapi dengan fitur pen
 | **Gambar** | Upload gambar pendukung soal | ❌ |
 | **Kategori** | Mudah / Sedang / Sulit | ❌ |
 | **Pembahasan** | Penjelasan jawaban | ❌ |
-| **Opsi A** | Pilihan jawaban A | ✅ |
-| **Opsi B** | Pilihan jawaban B | ✅ |
-| **Opsi C** | Pilihan jawaban C | ✅ |
-| **Opsi D** | Pilihan jawaban D | ✅ |
-| **Kunci Jawaban** | Pilih radio button pada opsi yang benar | ✅ |
+| **Opsi A–D + Kunci** | Hanya untuk Pilihan Ganda | ✅ (PG) |
+| **Bahasa + Starter/Solusi** | Hanya untuk Koding | Bahasa ✅ |
+| **Essay** | Tanpa opsi dan kunci; jawaban berupa uraian (maks 10000 karakter), dinilai manual 0–100 oleh pengawas | — |
 
-3. Klik **"Simpan"**
+4. Klik **"Simpan"**
 
 ### Mengedit Soal
 
@@ -750,8 +749,9 @@ NIM,Nama,Kelas
 
 **Format CSV (8 kolom):**
 ```csv
-Soal,Gambar,Pilihan A,Pilihan B,Pilihan C,Pilihan D,Kunci,Kategori
-"Siapa presiden pertama RI?",,Soekarno,Soeharto,Habibie,Gus Dur,A,mudah
+Soal,Gambar,Pilihan A,Pilihan B,Pilihan C,Pilihan D,Kunci,Kategori,Tipe
+"Siapa presiden pertama RI?",,Soekarno,Soeharto,Habibie,Gus Dur,A,mudah,
+"Jelaskan fotosintesis.",,,,,,,mudah,essay
 ```
 
 | Kolom | Keterangan |
@@ -761,6 +761,7 @@ Soal,Gambar,Pilihan A,Pilihan B,Pilihan C,Pilihan D,Kunci,Kategori
 | **Pilihan A–D** | Opsi jawaban |
 | **Kunci** | A, B, C, atau D |
 | **Kategori** | mudah / sedang / sulit *(opsional)* |
+| **Tipe** | `essay` untuk soal uraian (tanpa opsi/kunci), kosongkan untuk pilihan ganda *(opsional)* |
 
 **Import dengan ZIP:**
 1. Siapkan file CSV + folder gambar, kompres ke ZIP
@@ -785,6 +786,11 @@ Pembahasan: Soekarno adalah presiden pertama RI
 
 Soal 2
 ...
+
+Soal 3
+Jelaskan perbedaan RAM dan ROM.
+Tipe: essay
+Kategori: sedang
 ```
 
 | Elemen | Keterangan |
@@ -794,6 +800,7 @@ Soal 2
 | **Kunci:** | Jawaban benar (A/B/C/D) |
 | **Kategori:** | mudah/sedang/sulit *(opsional)* |
 | **Pembahasan:** | Penjelasan jawaban *(opsional)* |
+| **Tipe:** | `essay` untuk soal uraian — tanpa opsi A–D dan tanpa `Kunci:` *(opsional)* |
 
 > Gambar dalam DOCX (inline) akan otomatis diekstrak.
 

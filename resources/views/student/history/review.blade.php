@@ -241,6 +241,40 @@
                                             <p class="text-xs text-blue-800">{{ $question->explanation }}</p>
                                         </div>
                                     @endif
+                                @elseif($question->isEssay())
+                                    @php
+                                        $studentEssay = $answer->answer_text ?? null;
+                                        $isEssayGraded = $answer && $answer->grade_status === \App\Models\Answer::GRADE_GRADED && $answer->score !== null;
+                                    @endphp
+                                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                                            <i class="ph-fill ph-article"></i> Soal Essay
+                                        </span>
+                                        @if($isEssayGraded)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                                <i class="ph-fill ph-check-circle"></i> Nilai: {{ rtrim(rtrim(number_format((float) $answer->score, 2, '.', ''), '0'), '.') }}/100
+                                            </span>
+                                        @elseif($studentEssay)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                                                <i class="ph ph-hourglass"></i> Menunggu penilaian
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    @if($studentEssay)
+                                        <p class="text-sm text-gray-800 whitespace-pre-wrap break-words">{{ $studentEssay }}</p>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                            <i class="ph ph-minus-circle"></i>
+                                            Tidak dijawab
+                                        </p>
+                                    @endif
+
+                                    @if($answer && $answer->grade_status === \App\Models\Answer::GRADE_PENDING && $studentEssay)
+                                        <p class="mt-3 text-xs font-medium text-amber-600 flex items-center gap-1" data-ai-pending>
+                                            <i class="ph ph-hourglass"></i> Sedang dinilai, skor akan muncul otomatis…
+                                        </p>
+                                    @endif
                                 @else
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         @foreach($question->options as $option)

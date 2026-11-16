@@ -409,12 +409,13 @@ class AdminController extends Controller
             'Expires' => '0',
         ];
 
-        $columns = ['Soal', 'Gambar', 'Pilihan A', 'Pilihan B', 'Pilihan C', 'Pilihan D', 'Kunci Jawaban', 'Kategori'];
+        $columns = ['Soal', 'Gambar', 'Pilihan A', 'Pilihan B', 'Pilihan C', 'Pilihan D', 'Kunci Jawaban', 'Kategori', 'Tipe'];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
-            fputcsv($file, ['Ibukota Indonesia adalah...', 'gambar1.jpg', 'Jakarta', 'Surabaya', 'Bandung', 'Medan', 'A', 'Pengetahuan Umum']);
+            fputcsv($file, ['Ibukota Indonesia adalah...', 'gambar1.jpg', 'Jakarta', 'Surabaya', 'Bandung', 'Medan', 'A', 'Pengetahuan Umum', '']);
+            fputcsv($file, ['Jelaskan perbedaan RAM dan ROM.', '', '', '', '', '', '', 'Sedang', 'essay']);
             fclose($file);
         };
 

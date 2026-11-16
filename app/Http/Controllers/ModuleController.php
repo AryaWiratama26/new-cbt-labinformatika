@@ -268,6 +268,7 @@ class ModuleController extends Controller
                     $opsiD = trim($row[5] ?? '');
                     $kunci = strtoupper(trim($row[6] ?? ''));
                     $kategori = trim($row[7] ?? '');
+                    $tipe = strtolower(trim($row[8] ?? ''));
                 } else {
                     $gambar = '';
                     $opsiA = trim($row[1] ?? '');
@@ -276,12 +277,15 @@ class ModuleController extends Controller
                     $opsiD = trim($row[4] ?? '');
                     $kunci = strtoupper(trim($row[5] ?? ''));
                     $kategori = '';
+                    $tipe = '';
                 }
+
+                $isEssay = in_array($tipe, ['essay', 'esai', 'uraian'], true);
 
                 $options = ['A' => $opsiA, 'B' => $opsiB, 'C' => $opsiC, 'D' => $opsiD];
                 $filled = array_filter($options, fn ($text) => $text !== '');
 
-                if (count($filled) < 2 || ! isset($filled[$kunci])) {
+                if (! $isEssay && (count($filled) < 2 || ! isset($filled[$kunci]))) {
                     $errorRows++;
 
                     continue;
@@ -304,7 +308,14 @@ class ModuleController extends Controller
                     'content' => $pertanyaan,
                     'image' => $imagePath,
                     'category' => $this->normalizeCategory($kategori),
+                    'type' => $isEssay ? Question::TYPE_ESSAY : Question::TYPE_MULTIPLE_CHOICE,
                 ]);
+
+                if ($isEssay) {
+                    $count++;
+
+                    continue;
+                }
 
                 foreach ($options as $key => $text) {
                     if ($text) {
@@ -425,6 +436,7 @@ class ModuleController extends Controller
 
         $type = $request->input('type', Question::TYPE_MULTIPLE_CHOICE);
         $isCoding = $type === Question::TYPE_CODING;
+        $isFreeText = $type !== Question::TYPE_MULTIPLE_CHOICE;
 
         $imagePath = null;
         if ($request->hasFile('image')) {
@@ -442,7 +454,7 @@ class ModuleController extends Controller
             'solution_code' => $isCoding ? $request->solution_code : null,
         ]);
 
-        if (! $isCoding) {
+        if ($type === Question::TYPE_MULTIPLE_CHOICE) {
             foreach ($request->options as $index => $optionContent) {
                 $question->options()->create([
                     'content' => $optionContent,
@@ -462,17 +474,19 @@ class ModuleController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'category' => 'nullable|in:mudah,sedang,sulit',
             'explanation' => 'nullable|string',
-            'type' => 'nullable|in:'.Question::TYPE_MULTIPLE_CHOICE.','.Question::TYPE_CODING,
+            'type' => 'nullable|in:'.Question::TYPE_MULTIPLE_CHOICE.','.Question::TYPE_CODING.','.Question::TYPE_ESSAY,
             'code_language' => 'nullable|required_if:type,'.Question::TYPE_CODING.'|in:'.implode(',', array_keys(Question::SUPPORTED_LANGUAGES)),
             'starter_code' => 'nullable|string',
             'solution_code' => 'nullable|string',
         ];
 
-        if ($request->input('type', Question::TYPE_MULTIPLE_CHOICE) !== Question::TYPE_CODING) {
-            $rules['options'] = 'required|array|size:4';
-            $rules['options.*'] = 'required|string';
-            $rules['correct_option'] = 'required|in:0,1,2,3';
+        if ($request->input('type', Question::TYPE_MULTIPLE_CHOICE) !== Question::TYPE_MULTIPLE_CHOICE) {
+            return $rules;
         }
+
+        $rules['options'] = 'required|array|size:4';
+        $rules['options.*'] = 'required|string';
+        $rules['correct_option'] = 'required|in:0,1,2,3';
 
         return $rules;
     }
@@ -490,6 +504,7 @@ class ModuleController extends Controller
 
         $type = $request->input('type', Question::TYPE_MULTIPLE_CHOICE);
         $isCoding = $type === Question::TYPE_CODING;
+        $isFreeText = $type !== Question::TYPE_MULTIPLE_CHOICE;
 
         $data = [
             'content' => $request->content,
@@ -519,8 +534,8 @@ class ModuleController extends Controller
 
         $question->update($data);
 
-        if ($isCoding) {
-            // Beralih ke tipe coding: hapus opsi lama hanya jika tidak ada jawaban siswa yang merujuknya.
+        if ($isFreeText) {
+            // Beralih ke tipe koding/essay: hapus opsi lama hanya jika tidak ada jawaban siswa yang merujuknya.
             // Menghapus opsi yang direferensikan akan cascade-delete jawaban (lihat NEW-04).
             $referenced = Answer::whereHas('option', fn ($q) => $q->where('question_id', $question->id))->exists();
             if (! $referenced) {
@@ -697,6 +712,12 @@ class ModuleController extends Controller
         $section->addText('Kunci: A');
         $section->addTextBreak();
 
+        // Soal 5 essay (tanpa opsi dan kunci)
+        $section->addText('5. Jelaskan perbedaan antara RAM dan ROM serta berikan contohnya.', ['bold' => true, 'size' => 11]);
+        $section->addText('Tipe: essay');
+        $section->addText('Kategori: Sedang');
+        $section->addTextBreak();
+
         $section->addText(
             'Keterangan:',
             ['bold' => true, 'underline' => 'single']
@@ -704,6 +725,7 @@ class ModuleController extends Controller
         $section->addText('- "Kunci:" diisi dengan huruf A, B, C, atau D.');
         $section->addText('- "Kategori:" bisa Mudah, Sedang, atau Sulit (opsional — boleh dihapus).');
         $section->addText('- "Pembahasan:" diisi penjelasan jawaban (opsional — boleh dihapus).');
+        $section->addText('- "Tipe: essay" untuk soal uraian — tanpa opsi A–D dan tanpa "Kunci:" (lihat Soal 5).');
         $section->addText('- Lihat Soal 4 sebagai contoh format minimal (tanpa Kategori dan Pembahasan).');
         $section->addText('- Gambar bisa disisipkan langsung di dalam soal.');
 
@@ -841,6 +863,7 @@ class ModuleController extends Controller
                     'key' => '',
                     'category' => '',
                     'explanation' => '',
+                    'type' => '',
                     'image' => $el['has_image'] ? $el['image'] : null, // BUG #23 fix: capture inline image on header
                 ];
 
@@ -887,6 +910,12 @@ class ModuleController extends Controller
                 continue;
             }
 
+            if (preg_match('/^Tipe\s*:\s*(.*)/i', $text, $m)) {
+                $current['type'] = trim($m[1]);
+
+                continue;
+            }
+
             // Kalau tidak cocok pola apapun, anggap sebagai lanjutan teks soal
             if (! empty($text)) {
                 $current['question'] .= "\n".$text;
@@ -909,13 +938,14 @@ class ModuleController extends Controller
         DB::transaction(function () use ($questions, $module, &$importedCount, &$errorRows) {
             foreach ($questions as $q) {
                 $category = $this->normalizeCategory($q['category']);
+                $isEssay = in_array(strtolower(trim($q['type'] ?? '')), ['essay', 'esai', 'uraian'], true);
 
                 $filled = array_filter(
                     ['A', 'B', 'C', 'D'],
                     fn ($letter) => isset($q['options'][$letter]) && trim((string) $q['options'][$letter]) !== ''
                 );
 
-                if (count($filled) < 2 || ! in_array($q['key'], $filled, true)) {
+                if (! $isEssay && (count($filled) < 2 || ! in_array($q['key'], $filled, true))) {
                     $errorRows++;
 
                     continue;
@@ -926,7 +956,14 @@ class ModuleController extends Controller
                     'image' => $q['image'],
                     'category' => $category,
                     'explanation' => $q['explanation'] ?: null,
+                    'type' => $isEssay ? Question::TYPE_ESSAY : Question::TYPE_MULTIPLE_CHOICE,
                 ]);
+
+                if ($isEssay) {
+                    $importedCount++;
+
+                    continue;
+                }
 
                 $keyOrder = ['A', 'B', 'C', 'D'];
                 foreach ($keyOrder as $letter) {
