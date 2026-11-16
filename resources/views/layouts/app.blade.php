@@ -18,11 +18,145 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
     
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        /* Admin sidebar rail + drawer. Presentational only; no function changes. */
+        #admin-sidebar { transition: width .25s ease, transform .25s ease; }
+        #app-main { transition: margin .25s ease; }
+        @media (min-width: 768px) {
+            html.sidebar-collapsed #admin-sidebar { width: 5rem; }
+            html.sidebar-collapsed #app-main { margin-left: 5rem; }
+            html.sidebar-collapsed .nav-label,
+            html.sidebar-collapsed .nav-caret,
+            html.sidebar-collapsed .sidebar-full,
+            html.sidebar-collapsed #sidebar-user-info { display: none; }
+            html.sidebar-collapsed .nav-link,
+            html.sidebar-collapsed .nav-toggle { justify-content: center; padding-left: 0; padding-right: 0; }
+            html.sidebar-collapsed .nav-group .nav-menu { display: none; }
+            html.sidebar-collapsed #sidebar-collapse i { transform: rotate(180deg); }
+            html.sidebar-collapsed #sidebar-user-row { flex-direction: column; align-items: center; gap: 0.5rem; }
+            #sidebar-collapse i { transition: transform .25s ease; }
+        }
+        .nav-menu { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+        .nav-menu > div { overflow: hidden; }
+        .nav-group.open .nav-menu { grid-template-rows: 1fr; }
+        .nav-group.open .nav-caret { transform: rotate(180deg); }
+        .nav-caret { transition: transform .2s ease; }
+    </style>
+    <script>
+        try { if (localStorage.getItem('cbt-sidebar-collapsed') === '1') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}
+    </script>
 </head>
 <body class="antialiased min-h-screen flex flex-col selection:bg-primary selection:text-white">
 
-    <!-- Top Navigation (if logged in) -->
+    <!-- Navigation (if logged in) -->
     @auth
+    @if(Auth::user()->role === 'admin')
+    @php
+        $navDashboard = request()->routeIs('admin.dashboard');
+        $navAnalytics = request()->routeIs('admin.analytics');
+        $navMaster = request()->routeIs('admin.courses.*', 'admin.classrooms*');
+        $navExams = request()->routeIs('admin.exams.*');
+        $navStudents = request()->routeIs('admin.students.*');
+        $navApiKeys = request()->routeIs('admin.api_keys.*');
+    @endphp
+    <!-- Mobile topbar (admin only) -->
+    <div class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+        <button type="button" id="sidebar-open" class="p-2 -ml-2 rounded-lg text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Buka menu navigasi" aria-expanded="false" aria-controls="admin-sidebar">
+            <i class="ph ph-list text-2xl"></i>
+        </button>
+        <div class="flex items-center gap-2">
+            <img src="{{ asset('images/logo-upb.png') }}" alt="Logo Universitas" class="h-7 object-contain" onerror="this.src='https://placehold.co/100x100?text=Logo'">
+            <span class="font-bold text-gray-900 text-sm">CBT Praktikum</span>
+        </div>
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit" class="p-2 -mr-2 rounded-lg text-gray-500 hover:text-red-500 transition-colors" title="Logout" aria-label="Keluar">
+                <i class="ph ph-sign-out text-2xl"></i>
+            </button>
+        </form>
+    </div>
+    <!-- Mobile drawer overlay -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-40 hidden md:hidden"></div>
+    <!-- Sidebar (admin only) -->
+    <aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full md:translate-x-0 bg-white border-r border-gray-200 flex flex-col" aria-label="Navigasi admin">
+        <div class="flex items-center gap-3 px-5 pt-5 pb-4">
+            <img src="{{ asset('images/logo-upb.png') }}" alt="Logo Universitas" class="h-9 object-contain shrink-0" onerror="this.src='https://placehold.co/100x100?text=Logo'">
+            <div class="sidebar-full min-w-0">
+                <h1 class="font-bold text-gray-900 leading-tight truncate">CBT Praktikum</h1>
+                <p class="text-xs text-gray-500 truncate">Universitas Pelita Bangsa</p>
+            </div>
+            <button type="button" id="sidebar-close" class="md:hidden ml-auto p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Tutup menu navigasi">
+                <i class="ph ph-x text-2xl"></i>
+            </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto px-4 pb-4 space-y-1">
+            <a href="{{ route('admin.dashboard') }}" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {{ $navDashboard ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" title="Dashboard" @if($navDashboard) aria-current="page" @endif>
+                <i class="ph ph-squares-four text-xl shrink-0"></i><span class="nav-label">Dashboard</span>
+            </a>
+            <a href="{{ route('admin.analytics') }}" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {{ $navAnalytics ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" title="Analitik" @if($navAnalytics) aria-current="page" @endif>
+                <i class="ph ph-chart-bar text-xl shrink-0"></i><span class="nav-label">Analitik</span>
+            </a>
+            <div class="nav-group {{ $navMaster ? 'open' : '' }}" data-group>
+                <button type="button" data-group-toggle aria-expanded="{{ $navMaster ? 'true' : 'false' }}" class="nav-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {{ $navMaster ? 'bg-[#e8eaf5] text-primary' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" title="Master Data">
+                    <i class="ph ph-stack text-xl shrink-0"></i><span class="nav-label flex-1 text-left">Master Data</span><i class="ph ph-caret-down nav-caret shrink-0"></i>
+                </button>
+                <div class="nav-menu"><div>
+                    <div class="ml-5 mt-1 mb-1 space-y-1 border-l border-gray-200 pl-3">
+                        <a href="{{ route('admin.courses.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.courses.*') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.courses.*')) aria-current="page" @endif>Mata Kuliah</a>
+                        <a href="{{ route('admin.classrooms') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.classrooms*') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.classrooms*')) aria-current="page" @endif>Kelas</a>
+                    </div>
+                </div></div>
+            </div>
+            <div class="nav-group {{ $navExams ? 'open' : '' }}" data-group>
+                <button type="button" data-group-toggle aria-expanded="{{ $navExams ? 'true' : 'false' }}" class="nav-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {{ $navExams ? 'bg-[#e8eaf5] text-primary' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" title="Ujian">
+                    <i class="ph ph-exam text-xl shrink-0"></i><span class="nav-label flex-1 text-left">Ujian</span><i class="ph ph-caret-down nav-caret shrink-0"></i>
+                </button>
+                <div class="nav-menu"><div>
+                    <div class="ml-5 mt-1 mb-1 space-y-1 border-l border-gray-200 pl-3">
+                        <a href="{{ route('admin.exams.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.exams.index') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.exams.index')) aria-current="page" @endif>Daftar Ujian</a>
+                        <a href="{{ route('admin.exams.create') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.exams.create') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.exams.create')) aria-current="page" @endif>Buat Ujian Baru</a>
+                    </div>
+                </div></div>
+            </div>
+            <div class="nav-group {{ $navStudents ? 'open' : '' }}" data-group>
+                <button type="button" data-group-toggle aria-expanded="{{ $navStudents ? 'true' : 'false' }}" class="nav-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {{ $navStudents ? 'bg-[#e8eaf5] text-primary' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" title="Mahasiswa">
+                    <i class="ph ph-users text-xl shrink-0"></i><span class="nav-label flex-1 text-left">Mahasiswa</span><i class="ph ph-caret-down nav-caret shrink-0"></i>
+                </button>
+                <div class="nav-menu"><div>
+                    <div class="ml-5 mt-1 mb-1 space-y-1 border-l border-gray-200 pl-3">
+                        <a href="{{ route('admin.students.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.students.index') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.students.index')) aria-current="page" @endif>Daftar Mahasiswa</a>
+                        <a href="{{ route('admin.students.create') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.students.create') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.students.create')) aria-current="page" @endif>Tambah Mahasiswa</a>
+                        <a href="{{ route('admin.students.move.form') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.students.move*') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.students.move*')) aria-current="page" @endif>Pindah Kelas</a>
+                    </div>
+                </div></div>
+            </div>
+            <a href="{{ route('admin.api_keys.index') }}" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors {{ $navApiKeys ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" title="API Keys" @if($navApiKeys) aria-current="page" @endif>
+                <i class="ph ph-key text-xl shrink-0"></i><span class="nav-label">API Keys</span>
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-100 space-y-3">
+            <button type="button" id="sidebar-collapse" class="hidden md:flex w-full items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors" aria-expanded="true" aria-controls="admin-sidebar" title="Ciutkan sidebar">
+                <i class="ph ph-caret-double-left text-base"></i><span class="sidebar-full">Ciutkan</span>
+            </button>
+            <div id="sidebar-user-row" class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-primary shrink-0">
+                    <i class="ph ph-user text-xl"></i>
+                </div>
+                <div id="sidebar-user-info" class="min-w-0 flex-1">
+                    <p class="font-medium text-sm text-gray-900 truncate">{{ Auth::user()->name }}</p>
+                    <p class="text-xs text-gray-500 capitalize">{{ Auth::user()->role }}</p>
+                </div>
+                <form method="POST" action="{{ route('logout') }}" class="shrink-0">
+                    @csrf
+                    <button type="submit" class="block p-2 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors" title="Logout" aria-label="Keluar">
+                        <i class="ph ph-sign-out text-xl"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </aside>
+    @else
     <nav class="bg-white border-b border-gray-200 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <img src="{{ asset('images/logo-upb.png') }}" alt="Logo Universitas" class="h-8 object-contain" onerror="this.src='https://placehold.co/100x100?text=Logo'">
@@ -32,21 +166,10 @@
             </div>
         </div>
         <div class="flex items-center gap-6">
-            @if(Auth::user()->role === 'admin')
-            <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 mr-4">
-                <a href="{{ route('admin.dashboard') }}" class="hover:text-primary transition-colors">Dashboard</a>
-                <a href="{{ route('admin.analytics') }}" class="hover:text-primary transition-colors">Analitik</a>
-                <a href="{{ route('admin.courses.index') }}" class="hover:text-primary transition-colors">Mata Kuliah</a>
-                <a href="{{ route('admin.exams.index') }}" class="hover:text-primary transition-colors">Ujian</a>
-                <a href="{{ route('admin.students.index') }}" class="hover:text-primary transition-colors">Mahasiswa</a>
-                <a href="{{ route('admin.api_keys.index') }}" class="hover:text-primary transition-colors">API Keys</a>
-            </div>
-            @elseif(Auth::user()->role === 'mahasiswa')
             <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 mr-4">
                 <a href="{{ route('student.dashboard') }}" class="hover:text-primary transition-colors">Dashboard</a>
                 <a href="{{ route('student.history') }}" class="hover:text-primary transition-colors">Riwayat</a>
             </div>
-            @endif
 
             <div class="hidden md:block text-right border-l border-gray-200 pl-6">
                 <p class="font-medium text-sm text-gray-900">{{ Auth::user()->name }}</p>
@@ -63,10 +186,11 @@
             </form>
         </div>
     </nav>
+    @endif
     @endauth
 
     <!-- Main Content -->
-    <main class="flex-grow flex flex-col">
+    <main id="app-main" class="flex-grow flex flex-col {{ auth()->check() && auth()->user()->role === 'admin' ? 'md:ml-72' : '' }}">
         @yield('content')
     </main>
 
@@ -218,6 +342,58 @@
             @endif
         });
         @endif
+    </script>
+
+    <script>
+        // Admin sidebar: collapse rail, dropdown groups, mobile drawer.
+        // Presentational only; no app logic touched.
+        (function () {
+            var root = document.documentElement;
+            var sidebar = document.getElementById('admin-sidebar');
+            if (!sidebar) return;
+
+            function setCollapsed(collapsed) {
+                root.classList.toggle('sidebar-collapsed', collapsed);
+                try { localStorage.setItem('cbt-sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
+                var btn = document.getElementById('sidebar-collapse');
+                if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
+            }
+
+            var collapseBtn = document.getElementById('sidebar-collapse');
+            if (collapseBtn) collapseBtn.addEventListener('click', function () {
+                setCollapsed(!root.classList.contains('sidebar-collapsed'));
+            });
+
+            document.querySelectorAll('[data-group-toggle]').forEach(function (toggle) {
+                toggle.addEventListener('click', function () {
+                    if (root.classList.contains('sidebar-collapsed') && window.innerWidth >= 768) {
+                        setCollapsed(false);
+                    }
+                    var group = toggle.closest('[data-group]');
+                    var open = group.classList.toggle('open');
+                    toggle.setAttribute('aria-expanded', String(open));
+                });
+            });
+
+            var openBtn = document.getElementById('sidebar-open');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = document.getElementById('sidebar-close');
+            function setDrawer(open) {
+                sidebar.classList.toggle('-translate-x-full', !open);
+                if (overlay) overlay.classList.toggle('hidden', !open);
+                if (openBtn) openBtn.setAttribute('aria-expanded', String(open));
+                if (window.innerWidth < 768) document.body.classList.toggle('overflow-hidden', open);
+            }
+            if (openBtn) openBtn.addEventListener('click', function () { setDrawer(true); });
+            if (overlay) overlay.addEventListener('click', function () { setDrawer(false); });
+            if (closeBtn) closeBtn.addEventListener('click', function () { setDrawer(false); });
+            sidebar.querySelectorAll('a').forEach(function (a) {
+                a.addEventListener('click', function () { if (window.innerWidth < 768) setDrawer(false); });
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) setDrawer(false);
+            });
+        })();
     </script>
 
     @stack('scripts')
