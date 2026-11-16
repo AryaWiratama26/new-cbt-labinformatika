@@ -79,6 +79,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Exams (schedule)
         Route::resource('admin/exams', ExamController::class)->names('admin.exams');
+        Route::post('admin/exams/{exam}/archive', [ExamController::class, 'archive'])->name('admin.exams.archive');
+        Route::post('admin/exams/{exam}/unarchive', [ExamController::class, 'unarchive'])->name('admin.exams.unarchive');
         Route::get('admin/analytics', [AdminController::class, 'analytics'])->name('admin.analytics');
         Route::get('admin/exams/{exam}/results', [ExamController::class, 'results'])->name('admin.exams.results');
         Route::get('admin/exams/{exam}/monitor', [ExamController::class, 'monitor'])->name('admin.exams.monitor');

@@ -16,16 +16,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-x-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         @forelse($modules as $module)
@@ -49,9 +40,9 @@
                     <a href="{{ route('admin.courses.modules.show', [$course, $module]) }}" class="flex-1 text-center py-2.5 bg-[#e8eaf5] hover:bg-[#dde0f0] text-primary rounded-xl font-medium transition-colors text-sm">
                         Kelola Soal
                     </a>
-                    <form action="{{ route('admin.courses.modules.destroy', [$course, $module]) }}" method="POST" onsubmit="return confirm('Hapus modul dan semua soalnya?')">
+                    <form action="{{ route('admin.courses.modules.destroy', [$course, $module]) }}" method="POST" data-confirm="Modul beserta seluruh soalnya ikut terhapus." data-confirm-title="Hapus modul dan semua soalnya?" data-confirm-text="Ya, hapus">
                         @csrf @method('DELETE')
-                        <button type="submit" class="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                        <button type="submit" class="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors" title="Hapus">
                             <i class="ph ph-trash text-lg"></i>
                         </button>
                     </form>

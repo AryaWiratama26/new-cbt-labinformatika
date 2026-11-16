@@ -20,16 +20,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-4 md:p-6 border-b border-gray-100 bg-gray-50/50">
@@ -84,18 +75,12 @@
                                     <a href="{{ route('admin.students.edit', $student) }}" class="text-secondary hover:text-secondary-hover p-2 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Edit">
                                         <i class="ph ph-pencil-simple text-lg"></i>
                                     </a>
-                                    <form action="{{ route('admin.students.reset_password', $student) }}" method="POST" class="inline-block">
-                                        @csrf
-                                        <button type="submit" class="text-primary hover:text-primary-hover p-2 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Reset Password" onclick="return confirm('Reset password ' + this.dataset.studentName + ' ke NIM?')" data-student-name="{{ $student->name }}">
-                                            <i class="ph ph-key text-lg"></i>
-                                        </button>
-                                    </form>
-                                    <form action="{{ route('admin.students.destroy', $student) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus ' + this.querySelector('[data-student-name-del]')?.dataset?.studentNameDel + '?');"><input type="hidden" data-student-name-del data-student-name-del="{{ $student->name }}">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
-                                            <i class="ph ph-trash text-lg"></i>
-                                        </button>
-                                    </form>
+                                    <button type="submit" form="reset-form-{{ $student->id }}" class="text-primary hover:text-primary-hover p-2 rounded-lg hover:bg-[#e8eaf5] transition-colors" title="Reset Password">
+                                        <i class="ph ph-key text-lg"></i>
+                                    </button>
+                                    <button type="submit" form="delete-form-{{ $student->id }}" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
+                                        <i class="ph ph-trash text-lg"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -108,6 +93,17 @@
                 </table>
             </div>
         </form>
+
+        {{-- Row-action forms live OUTSIDE #bulk-form: nested <form> is invalid
+            HTML and browsers silently reassign buttons to the outer form. --}}
+        @foreach($students as $student)
+            <form id="reset-form-{{ $student->id }}" action="{{ route('admin.students.reset_password', $student) }}" method="POST" class="hidden" data-confirm="Password akan dikembalikan menjadi NIM siswa." data-confirm-title="Reset password {{ $student->name }} ke NIM?" data-confirm-text="Ya, reset">
+                @csrf
+            </form>
+            <form id="delete-form-{{ $student->id }}" action="{{ route('admin.students.destroy', $student) }}" method="POST" class="hidden" data-confirm="Data dan nilai siswa ikut terhapus." data-confirm-title="Yakin ingin menghapus {{ $student->name }}?" data-confirm-text="Ya, hapus">
+                @csrf @method('DELETE')
+            </form>
+        @endforeach
 
         <div class="p-4 md:p-6 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
             <button type="button" id="bulk-delete-btn" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
@@ -135,9 +131,12 @@ function updateBulkButton() {
 document.getElementById('bulk-delete-btn')?.addEventListener('click', function() {
     const checked = document.querySelectorAll('.student-checkbox:checked').length;
     if (checked === 0) return;
-    if (confirm(`Hapus ${checked} mahasiswa yang dipilih?`)) {
-        document.getElementById('bulk-form').submit();
-    }
+    swalConfirm(`${checked} data mahasiswa terpilih akan dihapus permanen.`, {
+        title: `Hapus ${checked} mahasiswa yang dipilih?`,
+        confirmText: 'Ya, hapus semua'
+    }).then(function (r) {
+        if (r.isConfirmed) document.getElementById('bulk-form').submit();
+    });
 });
 </script>
 @endsection

@@ -73,6 +73,11 @@ class ExamController extends Controller
         $classroomId = request('classroom_id');
         $status = request('status');
 
+        // Archived exams are hidden by default; visible only via status=archived.
+        $query->when($status === 'archived',
+            fn ($q) => $q->where('is_archived', true),
+            fn ($q) => $q->where('is_archived', false));
+
         $query->when($search, fn ($q) => $q->where('title', 'like', '%'.$search.'%'))
             ->when($courseId, fn ($q) => $q->where('course_id', $courseId))
             ->when($classroomId, fn ($q) => $q->whereHas('classrooms', fn ($cq) => $cq->where('classroom_id', $classroomId)))
@@ -238,6 +243,57 @@ class ExamController extends Controller
         Cache::forget('admin_dashboard_stats');
 
         return redirect()->route('admin.exams.index')->with('success', 'Ujian berhasil dihapus.');
+    }
+
+    /**
+     * True when every class schedule of the exam has passed, so any
+     * unfinished session is abandoned (the student can no longer resume).
+     */
+    private function allSchedulesEnded(Exam $exam): bool
+    {
+        $exam->loadMissing('classrooms');
+
+        return $exam->classrooms->isNotEmpty()
+            && $exam->classrooms->every(
+                fn ($c) => \Carbon\Carbon::parse($c->pivot->end_time)->lte(now())
+            );
+    }
+
+    /**
+     * Archive an exam: hidden from the admin list and from students,
+     * but all history (sessions, results, PDFs) stays accessible.
+     */
+    public function archive(Exam $exam)
+    {
+        if ($exam->is_archived) {
+            return redirect()->route('admin.exams.index')->with('error', 'Ujian sudah diarsipkan.');
+        }
+
+        if (ExamSession::where('exam_id', $exam->id)->whereNull('finished_at')->exists()
+            && ! $this->allSchedulesEnded($exam)) {
+            return redirect()->route('admin.exams.index')->with('error', 'Ujian tidak dapat diarsipkan karena masih ada sesi ujian yang berjalan.');
+        }
+
+        $exam->update(['is_archived' => true, 'is_active' => false]);
+        Cache::forget('admin_dashboard_stats');
+
+        return redirect()->route('admin.exams.index')->with('success', 'Ujian berhasil diarsipkan.');
+    }
+
+    /**
+     * Unarchive an exam. is_active stays off so the admin explicitly
+     * re-enables it only when the exam should run again.
+     */
+    public function unarchive(Exam $exam)
+    {
+        if (! $exam->is_archived) {
+            return redirect()->route('admin.exams.index')->with('error', 'Ujian tidak dalam arsip.');
+        }
+
+        $exam->update(['is_archived' => false]);
+        Cache::forget('admin_dashboard_stats');
+
+        return redirect()->route('admin.exams.index', ['status' => 'archived'])->with('success', 'Ujian dikeluarkan dari arsip. Aktifkan kembali jika ingin dipakai.');
     }
 
     public function show(Exam $exam)

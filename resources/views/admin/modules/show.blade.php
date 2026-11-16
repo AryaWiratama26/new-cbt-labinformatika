@@ -27,16 +27,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="grid md:grid-cols-3 gap-8">
         <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
@@ -127,7 +118,7 @@
                                             <i class="ph ph-copy text-lg"></i>
                                         </button>
                                     </form>
-                                    <form action="{{ route('admin.courses.modules.questions.destroy', [$course, $module, $question]) }}" method="POST" onsubmit="return confirm('Hapus soal ini?')">
+                                    <form action="{{ route('admin.courses.modules.questions.destroy', [$course, $module, $question]) }}" method="POST" data-confirm="Soal yang dihapus tidak dapat dikembalikan." data-confirm-title="Hapus soal ini?" data-confirm-text="Ya, hapus">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
                                             <i class="ph ph-trash text-lg"></i>

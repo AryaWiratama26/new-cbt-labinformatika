@@ -31,11 +31,7 @@
         </div>
     </div>
 
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
     <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 mb-8 print:shadow-none print:border-none print:p-0">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6 pb-6 border-b border-gray-100">
             <div>

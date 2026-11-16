@@ -11,16 +11,7 @@
                 <p class="text-gray-500">Pratinjau soal dari modul yang terhubung.</p>
             </div>
         </div>
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
         <div class="flex gap-3 flex-wrap">
             <a href="{{ route('admin.exams.monitor', $exam) }}" class="inline-flex items-center gap-2 bg-white border border-primary/20 hover:bg-[#e8eaf5] text-primary py-2.5 px-4 rounded-xl font-medium transition-colors text-sm">
                 <i class="ph ph-eye text-lg"></i> Monitor

@@ -17,16 +17,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="bg-white p-4 md:p-6 rounded-[2rem] shadow-sm border border-gray-100 mb-6">
         <form method="GET" class="flex gap-3">
@@ -56,9 +47,9 @@
                             <i class="ph ph-pencil-simple text-lg"></i>
                         </button>
                         @if($classroom->users_count === 0)
-                            <form action="{{ route('admin.classrooms.destroy', $classroom) }}" method="POST" onsubmit="return confirm('Hapus kelas ' + this.querySelector('[data-name-confirm]')?.dataset?.nameConfirm + '?')"><input type="hidden" data-name-confirm data-name-confirm="{{ $classroom->name }}">
+                            <form action="{{ route('admin.classrooms.destroy', $classroom) }}" method="POST" data-confirm="Kelas yang dihapus tidak dapat dikembalikan." data-confirm-title="Hapus kelas {{ $classroom->name }}?" data-confirm-text="Ya, hapus">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                                <button type="submit" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
                                     <i class="ph ph-trash text-lg"></i>
                                 </button>
                             </form>

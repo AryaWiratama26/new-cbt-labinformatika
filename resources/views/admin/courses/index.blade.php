@@ -9,18 +9,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i>
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i>
-            {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="grid md:grid-cols-3 gap-8">
         
@@ -68,7 +57,7 @@
                                     <a href="{{ route('admin.courses.modules.index', $course) }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover px-3 py-1.5 bg-[#e8eaf5] hover:bg-[#dde0f0] rounded-lg transition-colors">
                                         <i class="ph ph-stack"></i> Modul
                                     </a>
-                                    <form action="{{ route('admin.courses.destroy', $course) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus matkul ini?');">
+                                    <form action="{{ route('admin.courses.destroy', $course) }}" method="POST" class="inline-block" data-confirm="Matkul yang dihapus tidak dapat dikembalikan." data-confirm-title="Yakin ingin menghapus matkul ini?" data-confirm-text="Ya, hapus">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">

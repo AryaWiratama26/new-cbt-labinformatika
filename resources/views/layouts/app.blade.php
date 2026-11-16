@@ -126,6 +126,99 @@
         }
     </script>
 
+    <!-- SweetAlert2 for confirmations & flash messages (admin) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function swalConfirm(message, opts) {
+            opts = opts || {};
+            return Swal.fire({
+                title: opts.title || 'Yakin?',
+                text: message,
+                icon: opts.icon || 'warning',
+                showCancelButton: true,
+                confirmButtonText: opts.confirmText || 'Ya, lanjutkan',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+                focusCancel: true,
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[2rem]',
+                    title: '!text-xl !font-bold !text-gray-900',
+                    htmlContainer: '!text-sm !text-gray-600',
+                    confirmButton: 'bg-primary hover:bg-primary-hover text-white font-semibold px-5 py-2.5 rounded-xl transition-colors ml-2',
+                    cancelButton: 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-5 py-2.5 rounded-xl transition-colors'
+                }
+            });
+        }
+
+        // Bind directly on each form (target phase): some admin tables nest
+        // row-action forms inside a bulk-action form (invalid but legacy HTML),
+        // and a bubbling submit event does not reliably reach document there.
+        // Direct binding behaves exactly like the old inline onsubmit confirm.
+        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                if (form.dataset.confirmed === '1') return;
+                e.preventDefault();
+                swalConfirm(form.getAttribute('data-confirm'), {
+                    title: form.getAttribute('data-confirm-title'),
+                    confirmText: form.getAttribute('data-confirm-text')
+                }).then(function (r) {
+                    if (r.isConfirmed) {
+                        form.dataset.confirmed = '1';
+                        form.submit();
+                    }
+                });
+            });
+        });
+
+        // Standalone buttons carrying data-confirm-target (e.g. bulk actions).
+        document.querySelectorAll('[data-confirm-target]').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                swalConfirm(el.getAttribute('data-confirm'), {
+                    title: el.getAttribute('data-confirm-title'),
+                    confirmText: el.getAttribute('data-confirm-text')
+                }).then(function (r) {
+                    if (r.isConfirmed) {
+                        var target = document.querySelector(el.getAttribute('data-confirm-target'));
+                        if (target) target.submit();
+                    }
+                });
+            });
+        });
+
+        @if(request()->is('admin/*') && (session('success') || session('error')))
+        document.addEventListener('DOMContentLoaded', function () {
+            @if(session('success'))
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: @json(session('success')),
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+            @endif
+            @if(session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Terjadi kesalahan',
+                text: @json(session('error')),
+                confirmButtonText: 'Mengerti',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[2rem]',
+                    title: '!text-xl !font-bold !text-gray-900',
+                    htmlContainer: '!text-sm !text-gray-600',
+                    confirmButton: 'bg-primary hover:bg-primary-hover text-white font-semibold px-5 py-2.5 rounded-xl transition-colors'
+                }
+            });
+            @endif
+        });
+        @endif
+    </script>
+
     @stack('scripts')
 
 </body>

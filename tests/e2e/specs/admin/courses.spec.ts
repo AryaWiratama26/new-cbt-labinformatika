@@ -22,8 +22,8 @@ test.describe('Course Management', () => {
     const deleteBtns = adminPage.page.locator('button[title="Hapus"]');
     const count = await deleteBtns.count();
     if (count > 0) {
-      adminPage.page.once('dialog', dialog => dialog.accept());
       await deleteBtns.first().click();
+      await adminPage.page.getByRole('button', { name: 'Ya, hapus' }).click();
       await expect(adminPage.page.locator('text=berhasil dihapus')).toBeVisible({ timeout: 5000 });
     }
   });

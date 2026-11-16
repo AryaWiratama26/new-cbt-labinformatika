@@ -23,17 +23,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i>
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
         <form method="GET" action="{{ route('admin.exams.index') }}" class="p-5 border-b border-gray-100">
@@ -70,6 +60,7 @@
                     <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Nonaktif</option>
                     <option value="upcoming" {{ request('status') === 'upcoming' ? 'selected' : '' }}>Belum Mulai</option>
                     <option value="finished" {{ request('status') === 'finished' ? 'selected' : '' }}>Selesai</option>
+                    <option value="archived" {{ request('status') === 'archived' ? 'selected' : '' }}>Diarsipkan</option>
                 </select>
                 <div class="flex gap-2">
                     <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors">
@@ -107,7 +98,12 @@
                                     @foreach($courseExams as $exam)
                                         <tr class="hover:bg-gray-50/50 transition-colors">
                                             <td class="py-3 px-5">
-                                                <p class="font-bold text-gray-900">{{ $exam->title }}</p>
+                                                <p class="font-bold text-gray-900">
+                                                    {{ $exam->title }}
+                                                    @if($exam->is_archived)
+                                                        <span class="ml-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200 whitespace-nowrap">Arsip</span>
+                                                    @endif
+                                                </p>
                                             </td>
                                             <td class="py-3 px-5">
                                                 <div class="flex flex-wrap gap-1">
@@ -157,7 +153,22 @@
                                                     <a href="{{ route('admin.exams.edit', $exam) }}" class="text-secondary hover:text-secondary-hover p-1.5 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Edit">
                                                         <i class="ph ph-pencil-simple text-base"></i>
                                                     </a>
-                                                    <form action="{{ route('admin.exams.destroy', $exam) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus ujian ini?');">
+                                                    @if(request('status') === 'archived')
+                                                        <form action="{{ route('admin.exams.unarchive', $exam) }}" method="POST" class="inline-block" data-confirm="Keluarkan ujian ini dari arsip?" data-confirm-title="Keluarkan dari arsip?" data-confirm-text="Ya, keluarkan">
+                                                            @csrf
+                                                            <button type="submit" class="text-green-600 hover:text-green-800 p-1.5 rounded-lg hover:bg-green-50 transition-colors" title="Keluarkan dari arsip">
+                                                                <i class="ph ph-arrow-counter-clockwise text-base"></i>
+                                                            </button>
+                                                        </form>
+                                                    @else
+                                                        <form action="{{ route('admin.exams.archive', $exam) }}" method="POST" class="inline-block" data-confirm="Ujian disembunyikan dari daftar dan dari siswa." data-confirm-title="Arsipkan ujian ini?" data-confirm-text="Ya, arsipkan">
+                                                            @csrf
+                                                            <button type="submit" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-lg hover:bg-amber-50 transition-colors" title="Arsipkan">
+                                                                <i class="ph ph-archive text-base"></i>
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                    <form action="{{ route('admin.exams.destroy', $exam) }}" method="POST" class="inline-block" data-confirm="Ujian yang dihapus tidak dapat dikembalikan." data-confirm-title="Yakin ingin menghapus ujian ini?" data-confirm-text="Ya, hapus">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">
@@ -199,7 +210,12 @@
                         @forelse($exams as $exam)
                         <tr class="hover:bg-gray-50/50 transition-colors">
                             <td class="py-4 px-6">
-                                <p class="font-bold text-gray-900">{{ $exam->title }}</p>
+                                <p class="font-bold text-gray-900">
+                                    {{ $exam->title }}
+                                    @if($exam->is_archived)
+                                        <span class="ml-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200 whitespace-nowrap">Arsip</span>
+                                    @endif
+                                </p>
                             </td>
                             <td class="py-4 px-6">
                                 <p class="font-medium text-gray-800">{{ $exam->course->name ?? '-' }}</p>
@@ -250,7 +266,22 @@
                                     <a href="{{ route('admin.exams.edit', $exam) }}" class="text-secondary hover:text-secondary-hover p-2 rounded-lg hover:bg-[#eeedf7] transition-colors" title="Edit">
                                         <i class="ph ph-pencil-simple text-lg"></i>
                                     </a>
-                                    <form action="{{ route('admin.exams.destroy', $exam) }}" method="POST" class="inline-block" onsubmit="return confirm('Yakin ingin menghapus ujian ini?');">
+                                    @if(request('status') === 'archived')
+                                        <form action="{{ route('admin.exams.unarchive', $exam) }}" method="POST" class="inline-block" data-confirm="Keluarkan ujian ini dari arsip?" data-confirm-title="Keluarkan dari arsip?" data-confirm-text="Ya, keluarkan">
+                                            @csrf
+                                            <button type="submit" class="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors" title="Keluarkan dari arsip">
+                                                <i class="ph ph-arrow-counter-clockwise text-lg"></i>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('admin.exams.archive', $exam) }}" method="POST" class="inline-block" data-confirm="Ujian disembunyikan dari daftar dan dari siswa." data-confirm-title="Arsipkan ujian ini?" data-confirm-text="Ya, arsipkan">
+                                            @csrf
+                                            <button type="submit" class="text-amber-600 hover:text-amber-800 p-2 rounded-lg hover:bg-amber-50 transition-colors" title="Arsipkan">
+                                                <i class="ph ph-archive text-lg"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    <form action="{{ route('admin.exams.destroy', $exam) }}" method="POST" class="inline-block" data-confirm="Ujian yang dihapus tidak dapat dikembalikan." data-confirm-title="Yakin ingin menghapus ujian ini?" data-confirm-text="Ya, hapus">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Hapus">

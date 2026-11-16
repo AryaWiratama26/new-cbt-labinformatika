@@ -37,11 +37,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">

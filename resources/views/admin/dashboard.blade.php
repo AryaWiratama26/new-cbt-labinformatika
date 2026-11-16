@@ -12,16 +12,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-center gap-3">
-            <i class="ph ph-check-circle text-xl"></i> {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-3">
-            <i class="ph ph-warning-circle text-xl"></i> {{ session('error') }}
-        </div>
-    @endif
+    {{-- Flash messages rendered via SweetAlert (layouts/app) --}}
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <a href="{{ route('admin.students.index') }}" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-primary/20 hover:shadow-md transition-all group">

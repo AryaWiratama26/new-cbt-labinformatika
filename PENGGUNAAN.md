@@ -443,6 +443,16 @@ Tersedia dua metode impor di panel kiri halaman bank soal:
 |--------|-----------|------------|
 | **Aktif** | Badge hijau | Ujian dapat diakses mahasiswa |
 | **Tidak Aktif** | Badge merah | Ujian disembunyikan dari mahasiswa |
+| **Diarsipkan** | Badge amber "Arsip" | Ujian lama disembunyikan dari daftar admin dan siswa; nilai, monitor, dan laporan tetap bisa dibuka |
+
+### Mengarsipkan Ujian
+
+Ujian yang sudah memiliki sesi/nilai siswa **tidak dapat dihapus**. Untuk merapikan daftar, gunakan **Arsip** (ikon arsip di kolom Aksi):
+
+1. Klik ikon **Arsip** → konfirmasi. Ujian hilang dari daftar dan dari dashboard siswa (status aktif ikut dimatikan).
+2. Lihat arsip via filter Status → **Diarsipkan**; di sana tersedia **Batalkan Arsip**, plus Monitor, Nilai, dan Detail seperti biasa.
+3. Arsip **ditolak** jika masih ada sesi ujian yang berjalan — selesaikan/tunggu dulu.
+4. Setelah batal arsip, ujian tetap nonaktif sampai admin mengaktifkannya lagi secara manual.
 
 ---
 
