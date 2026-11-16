@@ -39,6 +39,7 @@
                 <a href="{{ route('admin.courses.index') }}" class="hover:text-primary transition-colors">Mata Kuliah</a>
                 <a href="{{ route('admin.exams.index') }}" class="hover:text-primary transition-colors">Ujian</a>
                 <a href="{{ route('admin.students.index') }}" class="hover:text-primary transition-colors">Mahasiswa</a>
+                <a href="{{ route('admin.api_keys.index') }}" class="hover:text-primary transition-colors">API Keys</a>
             </div>
             @elseif(Auth::user()->role === 'mahasiswa')
             <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 mr-4">

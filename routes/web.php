@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\ExamController;
@@ -90,6 +91,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('admin/exams/{exam}/sessions/{session}/grade-coding', [ExamController::class, 'gradeCoding'])->name('admin.exams.grade_coding');
         Route::post('admin/exams/{exam}/sessions/{session}/ai-grade-coding', [ExamController::class, 'aiGradeCoding'])->name('admin.exams.ai_grade_coding');
         Route::post('admin/exams/{exam}/run-code', [ExamController::class, 'runCode'])->name('admin.exams.run_code');
+
+        // API keys for external systems (read-only grades API)
+        Route::get('admin/api-keys', [ApiKeyController::class, 'index'])->name('admin.api_keys.index');
+        Route::post('admin/api-keys', [ApiKeyController::class, 'store'])->name('admin.api_keys.store');
+        Route::delete('admin/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('admin.api_keys.destroy');
 
         // Classroom recap
         Route::get('admin/classrooms/{classroom}/recap', [AdminController::class, 'classroomRecap'])->name('admin.classrooms.recap');
