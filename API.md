@@ -62,4 +62,5 @@ curl -H "X-API-Key: cbt_live_XXXX" -H "Accept: application/json" \
 ## Catatan
 
 - Read-only: tidak ada endpoint tulis. Nilai hanya berubah lewat sistem ujian.
+- API tidak terpengaruh toggle "Tampilkan Nilai ke Siswa" (toggle itu hanya untuk tampilan siswa; integrasi tetap menerima skor).
 - Key bocor? Admin → API Keys → Cabut, generate baru. Tidak perlu ganti kode aplikasi.

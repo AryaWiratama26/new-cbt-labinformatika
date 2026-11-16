@@ -21,6 +21,8 @@
     @endif
 
     @if($sessions->count() > 0)
+        @php $visibleSessions = $sessions->filter(fn ($s) => $s->exam && $s->exam->show_score_to_students); @endphp
+        @if($visibleSessions->isNotEmpty())
         <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 md:p-8 mb-6">
             <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <i class="ph ph-chart-bar text-primary"></i>
@@ -30,12 +32,18 @@
                 <canvas id="scoreChart"></canvas>
             </div>
         </div>
+        @else
+        <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 md:p-8 mb-6 flex items-center gap-3">
+            <i class="ph ph-eye-slash text-2xl text-gray-400"></i>
+            <p class="text-sm text-gray-500">Nilai disembunyikan oleh pengawas untuk ujian yang Anda ikuti.</p>
+        </div>
+        @endif
 
-        @php
+            @php
             $chartLabels = [];
             $chartScores = [];
             $chartColors = [];
-            foreach ($sessions as $s) {
+            foreach ($visibleSessions as $s) {
                 $title = mb_strlen($s->exam->title) > 22 ? mb_substr($s->exam->title, 0, 20) . '...' : $s->exam->title;
                 $chartLabels[] = $title;
                 $chartScores[] = (float) ($s->score ?? 0);
@@ -121,9 +129,13 @@
                                     </span>
                                 </td>
                                 <td class="py-4 px-6 text-center">
+                                    @if($session->exam && $session->exam->show_score_to_students)
                                     <span class="text-lg font-bold {{ $isPassed ? 'text-green-600' : 'text-red-500' }}">
                                         {{ $session->score ?? '-' }}
                                     </span>
+                                    @else
+                                    <span class="text-lg font-bold text-gray-300">–</span>
+                                    @endif
                                 </td>
                                 <td class="py-4 px-6 text-center">
                                     @if($isPassed)

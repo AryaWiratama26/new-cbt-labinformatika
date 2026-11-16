@@ -114,7 +114,7 @@
                 </button>
                 <div class="nav-menu"><div>
                     <div class="ml-5 mt-1 mb-1 space-y-1 border-l border-gray-200 pl-3">
-                        <a href="{{ route('admin.exams.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.exams.index') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.exams.index')) aria-current="page" @endif>Daftar Ujian</a>
+                        <a href="{{ route('admin.exams.index') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.exams.*') && !request()->routeIs('admin.exams.create') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.exams.*') && !request()->routeIs('admin.exams.create')) aria-current="page" @endif>Daftar Ujian</a>
                         <a href="{{ route('admin.exams.create') }}" class="block px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.exams.create') ? 'bg-primary text-white' : 'text-gray-600 hover:bg-[#e8eaf5] hover:text-primary' }}" @if(request()->routeIs('admin.exams.create')) aria-current="page" @endif>Buat Ujian Baru</a>
                     </div>
                 </div></div>

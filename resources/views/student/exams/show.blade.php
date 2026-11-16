@@ -207,11 +207,19 @@
         <div class="w-full bg-gray-100 text-gray-500 py-4 rounded-xl font-medium text-center border border-gray-200 cursor-not-allowed">
             <i class="ph ph-check-circle text-xl inline-block mb-1"></i>
             <p>Anda sudah menyelesaikan ujian ini.</p>
+        @if($exam->show_score_to_students)
             @if($lastSession->score >= $exam->passing_grade)
                 <p class="text-sm text-green-600 mt-1">Nilai: {{ $lastSession->score }} (Lulus)</p>
             @else
                 <p class="text-sm text-red-500 mt-1">Nilai: {{ $lastSession->score }} (Batas percobaan habis)</p>
             @endif
+        @else
+            @if($lastSession->score >= $exam->passing_grade)
+                <p class="text-sm text-green-600 mt-1">Status: Lulus</p>
+            @else
+                <p class="text-sm text-red-500 mt-1">Status: Batas percobaan habis</p>
+            @endif
+        @endif
         </div>
         @endif
     </div>

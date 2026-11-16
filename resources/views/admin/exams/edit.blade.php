@@ -153,6 +153,12 @@
                     <span class="ml-3 text-sm font-medium text-gray-700">Aktifkan Ujian</span>
                 </label>
                 <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="hidden" name="show_score_to_students" value="0">
+                    <input type="checkbox" name="show_score_to_students" value="1" class="sr-only peer" {{ $exam->show_score_to_students ? 'checked' : '' }}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <span class="ml-3 text-sm font-medium text-gray-700">Tampilkan Nilai ke Siswa</span>
+                </label>
+                <label class="relative inline-flex items-center cursor-pointer">
                     <input type="hidden" name="require_fullscreen" value="0">
                     <input type="checkbox" name="require_fullscreen" value="1" class="sr-only peer" {{ $exam->require_fullscreen ? 'checked' : '' }}>
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>

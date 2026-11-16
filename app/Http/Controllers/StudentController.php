@@ -202,10 +202,12 @@ class StudentController extends Controller
             ->where('grade_status', '<>', Answer::GRADE_GRADED)
             ->count();
 
+        $showScore = (bool) ($examSession->exam->show_score_to_students ?? true);
+
         return response()->json([
             'finished' => $examSession->finished_at !== null,
             'graded' => $examSession->graded_at !== null,
-            'score' => $examSession->score,
+            'score' => $showScore ? $examSession->score : null,
             'pending' => $pending,
         ]);
     }

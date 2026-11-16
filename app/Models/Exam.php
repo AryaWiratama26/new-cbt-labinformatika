@@ -11,11 +11,12 @@ class Exam extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'is_active', 'is_archived', 'passing_grade', 'max_attempts', 'max_tab_switches', 'require_fullscreen', 'camera_proctoring', 'camera_phone'];
+    protected $fillable = ['title', 'description', 'course_id', 'module_id', 'is_active', 'is_archived', 'show_score_to_students', 'passing_grade', 'max_attempts', 'max_tab_switches', 'require_fullscreen', 'camera_proctoring', 'camera_phone'];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_archived' => 'boolean',
+        'show_score_to_students' => 'boolean',
         'require_fullscreen' => 'boolean',
         'camera_proctoring' => 'boolean',
         'camera_phone' => 'boolean',

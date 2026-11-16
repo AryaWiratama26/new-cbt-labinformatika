@@ -29,12 +29,17 @@
                 <h3 class="text-xl font-bold text-gray-900">{{ auth()->user()->name }}</h3>
                 <p class="text-sm text-gray-500">{{ auth()->user()->username }} — {{ auth()->user()->classroom->name ?? '-' }}</p>
             </div>
-            <div class="text-right md:text-right">
-                <p class="text-4xl font-bold {{ ($examSession->score ?? 0) >= ($exam->passing_grade ?? 70) ? 'text-green-600' : 'text-red-500' }}">
-                    {{ $examSession->score ?? '-' }}
-                </p>
-                <p class="text-xs text-gray-500">Nilai Akhir</p>
-            </div>
+                    <div class="text-right md:text-right">
+                        @if($exam->show_score_to_students)
+                        <p class="text-4xl font-bold {{ ($examSession->score ?? 0) >= ($exam->passing_grade ?? 70) ? 'text-green-600' : 'text-red-500' }}">
+                            {{ $examSession->score ?? '-' }}
+                        </p>
+                        <p class="text-xs text-gray-500">Nilai Akhir</p>
+                        @else
+                        <p class="text-4xl font-bold text-gray-300">–</p>
+                        <p class="text-xs text-gray-500">Nilai disembunyikan pengawas</p>
+                        @endif
+                    </div>
         </div>
 
         <div class="mb-6 flex items-center gap-4">
@@ -192,10 +197,12 @@
                                                 <i class="ph ph-terminal-window"></i> {{ $question->languageLabel() }}
                                             </span>
                                         @endif
-                                        @if($isGraded)
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                                <i class="ph-fill ph-check-circle"></i> Nilai: {{ rtrim(rtrim(number_format((float) $answer->score, 2, '.', ''), '0'), '.') }}/100
-                                            </span>
+                        @if($isGraded)
+                            @if($exam->show_score_to_students)
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                <i class="ph-fill ph-check-circle"></i> Nilai: {{ rtrim(rtrim(number_format((float) $answer->score, 2, '.', ''), '0'), '.') }}/100
+                            </span>
+                            @endif
                                             @if($answer->graded_by === \App\Models\Answer::GRADED_BY_AI || $answer->graded_by === \App\Models\Answer::GRADED_BY_MANUAL)
                                                 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
                                                     <i class="ph ph-user-check"></i> Dinilai admin
@@ -250,10 +257,12 @@
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
                                             <i class="ph-fill ph-article"></i> Soal Essay
                                         </span>
-                                        @if($isEssayGraded)
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                                <i class="ph-fill ph-check-circle"></i> Nilai: {{ rtrim(rtrim(number_format((float) $answer->score, 2, '.', ''), '0'), '.') }}/100
-                                            </span>
+                        @if($isEssayGraded)
+                            @if($exam->show_score_to_students)
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                <i class="ph-fill ph-check-circle"></i> Nilai: {{ rtrim(rtrim(number_format((float) $answer->score, 2, '.', ''), '0'), '.') }}/100
+                            </span>
+                            @endif
                                         @elseif($studentEssay)
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
                                                 <i class="ph ph-hourglass"></i> Menunggu penilaian

@@ -415,6 +415,7 @@ Tersedia dua metode impor di panel kiri halaman bank soal:
 |-------|------------|
 | **Deskripsi** | Instruksi atau peraturan ujian *(opsional)* |
 | **Aktifkan Ujian** | Centang untuk mengaktifkan ujian |
+| **Tampilkan Nilai ke Siswa** | Centang (default) agar angka skor tampil di dashboard, riwayat, dan review siswa. Matikan untuk menyembunyikan angka nilai — status Lulus/Gagal dan alur remedial tetap berjalan normal |
 
 4. Klik **"Simpan Ujian"**
 
