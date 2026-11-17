@@ -326,6 +326,10 @@ class StudentController extends Controller
                     ->first();
 
                 if ($lastSession && ! $lastSession->finished_at) {
+                    // Lanjut sesi berjalan (mis. setelah scan ulang HP): pairing
+                    // baru tetap harus terikat ke sesi ini.
+                    $this->bindPhonePairing($exam, $user->id, $lastSession->id);
+
                     return redirect()->route('student.exams.attempt', $exam);
                 }
 
@@ -347,17 +351,7 @@ class StudentController extends Controller
                     'started_at' => now(),
                 ]);
 
-                if ($exam->camera_proctoring && $exam->camera_phone) {
-                    $token = Cache::get("proctor_pair_pending:{$user->id}:{$exam->id}");
-                    if ($token) {
-                        $pairKey = "proctor_pair:{$token}";
-                        $pairData = Cache::get($pairKey);
-                        if ($pairData) {
-                            $pairData['session_id'] = $session->id;
-                            Cache::put($pairKey, $pairData, now()->addMinutes(5));
-                        }
-                    }
-                }
+                $this->bindPhonePairing($exam, $user->id, $session->id);
 
                 return redirect()->route('student.exams.attempt', $exam);
             });
@@ -938,6 +932,28 @@ class StudentController extends Controller
 
             return redirect()->route('student.dashboard')->with('success', $message);
         });
+    }
+
+    /**
+     * Ikat pairing kamera HP (bila ada) ke sesi ujian. TTL diperpanjang ke
+     * durasi ujian lewat ProctorController::storePairing().
+     */
+    private function bindPhonePairing(Exam $exam, int $userId, int $sessionId): void
+    {
+        if (! $exam->camera_proctoring || ! $exam->camera_phone) {
+            return;
+        }
+
+        $token = Cache::get("proctor_pair_pending:{$userId}:{$exam->id}");
+        $pairData = $token ? Cache::get("proctor_pair:{$token}") : null;
+
+        if (! $pairData) {
+            return;
+        }
+
+        $pairData['session_id'] = $sessionId;
+        $pairData['last_event_at'] = now()->timestamp;
+        ProctorController::storePairing($token, $pairData);
     }
 
     /**

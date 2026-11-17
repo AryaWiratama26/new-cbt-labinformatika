@@ -13,6 +13,52 @@ use Illuminate\Support\Str;
 class ProctorController extends Controller
 {
     /**
+     * Token yang belum terikat ke sesi ujian (mahasiswa masih di halaman
+     * persiapan) cukup berumur pendek.
+     */
+    public const PAIR_TTL_PREPARING_MINUTES = 10;
+
+    /**
+     * Begitu terikat ke sesi, pairing harus bertahan selama ujian berjalan.
+     * Dulu 5 menit tetap dan hanya diperpanjang oleh heartbeat, sehingga
+     * penunjuk (user, exam) → token kedaluwarsa duluan dan ujian "terjeda".
+     */
+    public const PAIR_TTL_ACTIVE_HOURS = 6;
+
+    /**
+     * Tanpa event dari HP selama ini, kamera HP dianggap tidak aktif.
+     * Heartbeat dikirim tiap 10 detik, jadi 120 detik toleran terhadap
+     * throttling timer di browser HP.
+     */
+    public const PHONE_STALE_SECONDS = 120;
+
+    public static function pairTtl(bool $bound): \DateTimeInterface
+    {
+        return $bound
+            ? now()->addHours(self::PAIR_TTL_ACTIVE_HOURS)
+            : now()->addMinutes(self::PAIR_TTL_PREPARING_MINUTES);
+    }
+
+    /**
+     * Simpan data pairing dan penunjuk (user, exam) → token dengan TTL yang
+     * sama. Penunjuk tidak menimpa token yang lebih baru (mahasiswa scan
+     * ulang sementara halaman HP lama masih mengirim event).
+     */
+    public static function storePairing(string $token, array $data): void
+    {
+        $ttl = self::pairTtl(! empty($data['session_id']));
+
+        Cache::put("proctor_pair:{$token}", $data, $ttl);
+
+        $pendingKey = "proctor_pair_pending:{$data['user_id']}:{$data['exam_id']}";
+        $current = Cache::get($pendingKey);
+
+        if ($current === null || $current === $token) {
+            Cache::put($pendingKey, $token, $ttl);
+        }
+    }
+
+    /**
      * Generate pairing token for phone camera.
      */
     public function createPairingToken(Request $request, Exam $exam)
@@ -31,10 +77,12 @@ class ProctorController extends Controller
             'user_id' => $user->id,
             'exam_id' => $exam->id,
             'paired' => false,
+            'last_event_at' => now()->timestamp,
         ];
 
-        Cache::put($key, $pairData, now()->addMinutes(5));
-        Cache::put("proctor_pair_pending:{$user->id}:{$exam->id}", $token, now()->addMinutes(5));
+        $ttl = self::pairTtl(false);
+        Cache::put($key, $pairData, $ttl);
+        Cache::put("proctor_pair_pending:{$user->id}:{$exam->id}", $token, $ttl);
 
         return response()->json([
             'token' => $token,
@@ -86,7 +134,8 @@ class ProctorController extends Controller
 
         $data['paired'] = true;
         $data['phone_camera_active'] = true;
-        Cache::put($key, $data, now()->addMinutes(5));
+        $data['last_event_at'] = now()->timestamp;
+        self::storePairing($token, $data);
 
         return response()->json([
             'valid' => true,
@@ -113,7 +162,12 @@ class ProctorController extends Controller
     }
 
     /**
-     * Return pairing state for the student preparation page.
+     * Return pairing state for the student preparation / exam page.
+     *
+     * `stale` berarti HP sudah paired dan ujian berjalan, tetapi tidak ada
+     * event (heartbeat) dalam PHONE_STALE_SECONDS — misalnya layar HP terkunci.
+     * Berbeda dengan `paired=false`, kondisi ini pulih sendiri begitu HP
+     * kembali mengirim event.
      */
     public function pairingStatus(Exam $exam)
     {
@@ -126,10 +180,22 @@ class ProctorController extends Controller
         $token = Cache::get("proctor_pair_pending:{$user->id}:{$exam->id}");
         $data = $token ? Cache::get("proctor_pair:{$token}") : null;
 
+        $lastEventAt = $data['last_event_at'] ?? null;
+        $secondsSinceSeen = $lastEventAt !== null
+            ? max(0, now()->timestamp - (int) $lastEventAt)
+            : null;
+
+        $stale = ! empty($data['paired'])
+            && ! empty($data['session_id'])
+            && $secondsSinceSeen !== null
+            && $secondsSinceSeen > self::PHONE_STALE_SECONDS;
+
         return response()->json([
             'paired' => (bool) ($data['paired'] ?? false),
             'token' => $token,
             'camera_active' => (bool) ($data['phone_camera_active'] ?? true),
+            'stale' => $stale,
+            'seconds_since_seen' => $secondsSinceSeen,
         ]);
     }
 
@@ -156,7 +222,7 @@ class ProctorController extends Controller
     {
         $data = Cache::get("proctor_pair:{$token}");
 
-        if (! $data || empty($data['paired']) || empty($data['session_id'])) {
+        if (! $data || empty($data['paired'])) {
             return response()->json(['error' => 'Pairing is not active'], 409);
         }
 
@@ -165,11 +231,19 @@ class ProctorController extends Controller
             'meta' => 'nullable|array',
         ]);
 
-        $session = ExamSession::whereKey($data['session_id'])
-            ->where('user_id', $data['user_id'])
+        // Sesi diambil dari (user, exam) yang sedang berjalan, bukan dari
+        // session_id di cache, agar pairing tetap bekerja walau mahasiswa
+        // scan ulang di tengah ujian.
+        $session = ExamSession::where('user_id', $data['user_id'])
+            ->where('exam_id', $data['exam_id'])
+            ->whereNull('finished_at')
+            ->orderByDesc('attempt_number')
             ->first();
-        if (! $session || $session->finished_at) {
-            return response()->json(['error' => 'Session finished'], 403);
+
+        if (! $session) {
+            return empty($data['session_id'])
+                ? response()->json(['error' => 'Pairing is not active'], 409)
+                : response()->json(['error' => 'Session finished'], 403);
         }
 
         ProctorEvent::create([
@@ -180,8 +254,10 @@ class ProctorController extends Controller
         ]);
 
         $cameraActive = $validated['type'] !== 'camera_off';
+        $data['session_id'] = $session->id;
         $data['phone_camera_active'] = $cameraActive;
-        Cache::put("proctor_pair:{$token}", $data, now()->addMinutes(5));
+        $data['last_event_at'] = now()->timestamp;
+        self::storePairing($token, $data);
         $session->update(['phone_seen_at' => $cameraActive ? now() : null]);
 
         return response()->json(['success' => true]);

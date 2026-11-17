@@ -101,6 +101,11 @@
         let viewerId = 'phone_' + Math.random().toString(36).slice(2, 11);
         let cameraFacingMode = 'environment';
         let cameraStarting = false;
+        let wakeLock = null;
+        // true selama pengguna tidak sengaja mematikan kamera; dipakai untuk
+        // menyalakan ulang kamera yang dihentikan OS (layar terkunci, dll).
+        let wantCamera = false;
+        let pairingEnded = false;
 
         async function init() {
             try {
@@ -125,10 +130,13 @@
                 await startCamera();
                 if (!stream) return;
                 
-                if (!await initDetector()) {
-                    throw new Error('Object detector gagal dimuat');
+                // Detector gagal dimuat tidak boleh mematikan kamera: kamera
+                // aktif + heartbeat tetap dibutuhkan agar ujian tidak terjeda.
+                if (await initDetector()) {
+                    startDetection();
+                } else {
+                    showStatus('Kamera aktif, tetapi deteksi objek tidak tersedia di perangkat ini.', 'blue');
                 }
-                startDetection();
             } catch (e) {
                 stopCamera();
                 showStatus('Gagal mengakses kamera: ' + e.message, 'red');
@@ -140,6 +148,8 @@
                 const response = await fetch(statusUrl, { cache: 'no-store' });
                 const data = await response.json();
                 if (!data.active) {
+                    pairingEnded = true;
+                    wantCamera = false;
                     stopCamera();
                     showStatus('Ujian selesai. Kamera dimatikan.', 'gray');
                     if (pairStatusTimer) {
@@ -166,7 +176,11 @@
                 document.getElementById('camera-label').textContent = cameraFacingMode === 'environment' ? 'Kamera belakang' : 'Kamera depan';
                 document.getElementById('camera-label').classList.remove('hidden');
                 showStatus('Kamera aktif', 'green');
+                wantCamera = true;
+                watchTrack();
+                requestWakeLock();
                 notifyCameraState(true);
+                startHeartbeat();
                 if (detector) startDetection();
             } catch (e) {
                 stream = null;
@@ -199,7 +213,18 @@
                 requestAnimationFrame(loop);
             };
             loop();
-            heartbeatTimer = window.setInterval(() => sendEvent('heartbeat', null), 10000);
+        }
+
+        function heartbeatMeta() {
+            return detector ? null : { detector: false };
+        }
+
+        // Heartbeat berjalan selama kamera hidup, terlepas dari detector,
+        // karena server memakainya sebagai sinyal "HP masih terhubung".
+        function startHeartbeat() {
+            if (heartbeatTimer) return;
+            heartbeatTimer = window.setInterval(() => sendEvent('heartbeat', heartbeatMeta()), 10000);
+            sendEvent('heartbeat', heartbeatMeta());
         }
 
         function processDetections(detections) {
@@ -226,6 +251,8 @@
                 body: JSON.stringify({ type, meta }),
             }).then(response => {
                 if (response.status === 403) {
+                    pairingEnded = true;
+                    wantCamera = false;
                     stopCamera();
                     showStatus('Ujian selesai. Kamera dimatikan.', 'gray');
                 }
@@ -246,6 +273,10 @@
             if (heartbeatTimer) {
                 clearInterval(heartbeatTimer);
                 heartbeatTimer = null;
+            }
+            if (wakeLock) {
+                wakeLock.release().catch(() => {});
+                wakeLock = null;
             }
             if (stream) {
                 stream.getTracks().forEach(t => t.stop());
@@ -280,6 +311,7 @@
 
         function toggleCamera() {
             if (stream) {
+                wantCamera = false;
                 notifyCameraState(false);
                 stopCamera();
                 showStatus('Kamera dimatikan', 'gray');
@@ -294,10 +326,66 @@
         }
 
         function closePage() {
+            wantCamera = false;
             notifyCameraState(false);
             stopCamera();
             window.close();
         }
+
+        function setToggleLabel(cameraOn) {
+            document.getElementById('cam-btn-text').textContent = cameraOn ? 'Matikan' : 'Nyalakan Kamera';
+            document.getElementById('cam-btn-icon').className = cameraOn
+                ? 'ph ph-video-camera-slash mr-1'
+                : 'ph ph-video-camera mr-1';
+        }
+
+        async function requestWakeLock() {
+            try {
+                if (!('wakeLock' in navigator) || wakeLock) return;
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => { wakeLock = null; });
+            } catch (e) {
+                wakeLock = null;
+            }
+        }
+
+        // Track berhenti tanpa kita minta (OS mengambil kamera saat layar
+        // terkunci / aplikasi lain memakainya). Laporkan ke server, jangan diam.
+        function watchTrack() {
+            const track = stream && stream.getVideoTracks()[0];
+            if (track) track.addEventListener('ended', onTrackEnded);
+        }
+
+        function onTrackEnded() {
+            if (!stream) return;
+            notifyCameraState(false);
+            stopCamera();
+            setToggleLabel(false);
+            showStatus('Kamera HP terhenti. Buka layar HP ini kembali atau ketuk "Nyalakan Kamera".', 'red');
+        }
+
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState !== 'visible' || pairingEnded) return;
+
+            if (stream && !stream.getVideoTracks().some(t => t.readyState === 'live')) {
+                onTrackEnded();
+            }
+
+            if (stream) {
+                requestWakeLock();
+                sendEvent('heartbeat', heartbeatMeta());
+                return;
+            }
+
+            if (wantCamera) {
+                try {
+                    await startCamera();
+                    setToggleLabel(true);
+                } catch (e) {
+                    showStatus('Kamera HP tidak dapat dinyalakan: ' + e.message, 'red');
+                }
+            }
+        });
 
         function showStatus(msg, color) {
             const colors = {

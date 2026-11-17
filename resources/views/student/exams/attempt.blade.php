@@ -1124,6 +1124,12 @@
             overlay.classList.toggle('flex', paused);
         }
 
+        // Overlay hanya muncul setelah beberapa poll buruk berturut-turut agar
+        // satu respons lambat/terlewat tidak menjeda ujian. Pulih langsung
+        // begitu satu poll kembali sehat.
+        let phoneBadPolls = 0;
+        const PHONE_BAD_POLLS_BEFORE_PAUSE = 2;
+
         async function checkPhoneCameraStatus() {
             try {
                 const response = await fetch('{{ route("proctor.pair_status", $exam) }}', {
@@ -1132,7 +1138,14 @@
                 });
                 if (!response.ok) return;
                 const data = await response.json();
-                setPhoneCameraPaused(!data.paired || data.camera_active === false);
+                const bad = !data.paired || data.camera_active === false || data.stale === true;
+                phoneBadPolls = bad ? phoneBadPolls + 1 : 0;
+
+                if (!bad) {
+                    setPhoneCameraPaused(false);
+                } else if (phoneBadPolls >= PHONE_BAD_POLLS_BEFORE_PAUSE) {
+                    setPhoneCameraPaused(true);
+                }
             } catch (error) {
                 console.warn('Phone camera status check failed', error);
             }
@@ -1145,13 +1158,21 @@
                 const module = await import('{{ Vite::asset('resources/js/proctor-laptop.js') }}');
                 const { ProctorLaptop } = module;
 
-                proctorLaptop = new ProctorLaptop({
-                    sessionId: {{ $session->id }},
-                    eventUrl: '{{ route("proctor.event") }}',
-                    csrfToken: csrfToken,
-                });
-
-                const granted = await proctorLaptop.init();
+                // Init bisa gagal sesaat (model WASM lambat di PC lab, kamera
+                // sedang dilepas tab lain). Coba beberapa kali sebelum
+                // melempar mahasiswa keluar dari ujian.
+                let granted = false;
+                for (let attempt = 1; attempt <= 3 && !granted; attempt++) {
+                    proctorLaptop = new ProctorLaptop({
+                        sessionId: {{ $session->id }},
+                        eventUrl: '{{ route("proctor.event") }}',
+                        csrfToken: csrfToken,
+                    });
+                    granted = await proctorLaptop.init();
+                    if (!granted && attempt < 3) {
+                        await new Promise((resolve) => setTimeout(resolve, 2000));
+                    }
+                }
                 if (!granted) {
                     alert('Gagal mengakses kamera. Silakan refresh halaman dan izinkan kembali.');
                     window.location.href = '{{ route("student.exams.show", $exam) }}';
