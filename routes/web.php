@@ -16,6 +16,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Public profile page. "/" still redirects to the login form.
+Route::view('/about-cbt', 'about')->name('about');
+
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

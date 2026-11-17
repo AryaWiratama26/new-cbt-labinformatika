@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name', 'CBT Praktikum') }}</title>
+    <title>@yield('title', config('app.name', 'CBT Praktikum'))</title>
     <!-- BUG #16 fix: CSRF meta tag untuk AJAX POST support -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
@@ -43,9 +43,13 @@
         .nav-group.open .nav-caret { transform: rotate(180deg); }
         .nav-caret { transition: transform .2s ease; }
     </style>
+    {{-- Hanya admin yang punya sidebar. Tanpa guard ini, flag di localStorage membuat
+         halaman tamu/mahasiswa (login, about) ikut bergeser 5rem ke kanan. --}}
+    @if(auth()->check() && auth()->user()->role === 'admin')
     <script>
         try { if (localStorage.getItem('cbt-sidebar-collapsed') === '1') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}
     </script>
+    @endif
 </head>
 <body class="antialiased min-h-screen flex flex-col selection:bg-primary selection:text-white">
 

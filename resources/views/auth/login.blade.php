@@ -6,11 +6,18 @@
         
         <!-- Left Side: Branding -->
         <div>
-            <div class="bg-white inline-flex p-3 rounded-2xl shadow-sm mb-6">
-                <img src="{{ asset('images/logo-upb.png') }}" alt="Logo" class="h-12 w-12 object-contain" onerror="this.style.display='none'">
-            </div>
-            <div class="bg-white inline-flex p-3 rounded-2xl shadow-sm mb-6">
-                <img src="{{ asset('images/logo-aslab.jpeg') }}" alt="Logo" class="h-12 w-12 object-contain" onerror="this.style.display='none'">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="bg-white inline-flex p-3 rounded-2xl shadow-sm">
+                    <img src="{{ asset('images/logo-upb.png') }}" alt="Logo" class="h-12 w-12 object-contain" onerror="this.style.display='none'">
+                </div>
+                <div class="bg-white inline-flex p-3 rounded-2xl shadow-sm">
+                    <img src="{{ asset('images/logo-aslab.jpeg') }}" alt="Logo" class="h-12 w-12 object-contain" onerror="this.style.display='none'">
+                </div>
+                <span class="mx-1 h-8 w-px bg-gray-300" aria-hidden="true"></span>
+                <a href="{{ route('about') }}" class="group inline-flex items-center gap-1.5 text-sm font-semibold text-primary rounded-md hover:text-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                    <span class="border-b border-transparent group-hover:border-primary/40 transition-colors">Tentang CBT</span>
+                    <i class="ph ph-arrow-up-right text-sm transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true"></i>
+                </a>
             </div>
             <p class="text-sm font-semibold text-gray-500 tracking-wider uppercase mb-2">Universitas Pelita Bangsa</p>
             <h1 class="text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-4 tracking-tight">
